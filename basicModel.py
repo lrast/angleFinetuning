@@ -61,7 +61,10 @@ class estimateAngle(pl.LightningModule):
         images = batch['image']
         targets = batch['angle']
 
-        return self.lossFn( self.forward(images).view(-1), targets )
+        loss = self.lossFn( self.forward(images).view(-1), targets )
+        self.log('Train Loss', loss.detach())
+
+        return loss
 
 
     def configure_optimizers(self):
@@ -73,9 +76,15 @@ class estimateAngle(pl.LightningModule):
         """generate the datasets"""
         gratingHyperparams = {key: self.hyperparameters[key] for key in ['frequency', 'shotNoise', 'noiseVar', 'pixelDim']}
 
-        trainingAngles = vonmises(self.hyperparameters['kappa_tr'], self.hyperparameters['loc_tr']).rvs(8*basesize)
-        valAngles = vonmises(self.hyperparameters['kappa_val'], self.hyperparameters['loc_val']).rvs(2*basesize)
-        testAngles = vonmises(self.hyperparameters['kappa_test'], self.hyperparameters['loc_test']).rvs(2*basesize)
+        trainingAngles = vonmises(
+            self.hyperparameters['kappa_tr'], self.hyperparameters['loc_tr']
+            ).rvs(8*basesize) % np.pi
+        valAngles = vonmises(
+            self.hyperparameters['kappa_val'], self.hyperparameters['loc_val']
+            ).rvs(2*basesize) % np.pi
+        testAngles = vonmises(
+            self.hyperparameters['kappa_test'], self.hyperparameters['loc_test']
+            ).rvs(2*basesize) % np.pi
 
         # generate datasets
         self.trainingData = GratingDataset( trainingAngles, **gratingHyperparams)
