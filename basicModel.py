@@ -56,7 +56,7 @@ class estimateAngle(pl.LightningModule):
 
     # angle coding functions
     def encodeAngles(self, angles):
-        return torch.stack( (torch.cos(2*targets), torch.sin(2*targets) ), dim=1 )
+        return torch.stack( (torch.cos(2*angles), torch.sin(2*angles) ), dim=1 )
 
     def decodeAngles(self, encodings):
         return torch.atan2(encodings[:,1], encodings[:,0]) / 2.
