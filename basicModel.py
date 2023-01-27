@@ -48,20 +48,33 @@ class estimateAngle(pl.LightningModule):
                 nn.ReLU(),
                 nn.Linear( pixelDim, 20),
                 nn.ReLU(),
-                nn.Linear(20, 1)
+                nn.Linear(20, 2)
         )
 
-        self.lossFn = nn.MSELoss()
+        self.cosSim = nn.CosineSimilarity()
+        self.lossFn = lambda x, y: torch.mean( 1. - self.cosSim(x,y) )
 
-    def forward(self, angles):
-        nsamples = angles.shape[0]
-        return self.model( angles.view(nsamples, -1) )
+    # angle coding functions
+    def encodeAngles(self, angles):
+        return torch.stack( (torch.cos(2*targets), torch.sin(2*targets) ), dim=1 )
+
+    def decodeAngles(self, encodings):
+        return torch.atan2(encodings[:,1], encodings[:,0]) / 2.
+
+
+    def forward(self, images):
+        nsamples = images.shape[0]
+        return self.model( images.view(nsamples, -1) )
+
 
     def training_step(self, batch, batchidx):
         images = batch['image']
         targets = batch['angle']
 
-        loss = self.lossFn( self.forward(images).view(-1), targets )
+        encodedTargets = self.encodeAngles(targets)
+        prediction = self.forward(images)
+
+        loss = self.lossFn( prediction, encodedTargets )
         self.log('Train Loss', loss.detach())
 
         return loss
@@ -72,7 +85,7 @@ class estimateAngle(pl.LightningModule):
 
 
     # data
-    def setup(self, stage=None, basesize=1000):
+    def setup(self, basesize=1000, stage=None):
         """generate the datasets"""
         gratingHyperparams = {key: self.hyperparameters[key] for key in ['frequency', 'shotNoise', 'noiseVar', 'pixelDim']}
 
@@ -88,18 +101,18 @@ class estimateAngle(pl.LightningModule):
 
         # generate datasets
         self.trainingData = GratingDataset( trainingAngles, **gratingHyperparams)
-        self.valData = GratingDataset( valAngles, **gratingHyperparams)
-        self.testData = GratingDataset( testAngles, **gratingHyperparams)
+        #self.valData = GratingDataset( valAngles, **gratingHyperparams)
+        #self.testData = GratingDataset( testAngles, **gratingHyperparams)
 
 
     def train_dataloader(self):
-        return DataLoader(self.trainingData, batch_size=self.hyperparameters['batchsize'])
+        return DataLoader(self.trainingData, batch_size=self.hyperparameters['batchsize'], shuffle=False)
 
-    def val_dataloader(self):
-        return DataLoader(self.valData, batch_size=self.hyperparameters['batchsize'])
+    #def val_dataloader(self):
+    #    return DataLoader(self.valData, batch_size=self.hyperparameters['batchsize'])
 
-    def test_dataloader(self):
-        return DataLoader(self.testData, batch_size=self.hyperparameters['batchsize'])
+    #def test_dataloader(self):
+    #    return DataLoader(self.testData, batch_size=self.hyperparameters['batchsize'])
 
 
 

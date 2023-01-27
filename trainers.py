@@ -8,6 +8,7 @@ def runBasicTraining(model):
     wandb_logger = WandbLogger(project='EstimateAngle')
     wandb_logger.experiment.config.update(model.hyperparameters )
 
-    trainer = Trainer(logger=wandb_logger, max_epochs=model.hyperparameters['max_epochs'])
+    trainer = Trainer(logger=wandb_logger,
+        max_epochs=model.hyperparameters['max_epochs'])
     trainer.fit(model)
 
