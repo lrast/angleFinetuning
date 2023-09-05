@@ -10,16 +10,16 @@ from datageneration.stimulusGeneration import GratingDataset
 from scipy.stats import vonmises
 
 
-class estimateAngle(pl.LightningModule):
+class EstimateAngle(pl.LightningModule):
     """Neural network models to estimate angle"""
     def __init__(self, **kwargs):
-        super(estimateAngle, self).__init__()
+        super(EstimateAngle, self).__init__()
 
-        self.hyperparameters = {
+        hyperparameterValues = {
             # training hyperparameters
             'lr': 1E-3,
             'batchsize': 100,
-            'max_epochs': 100,
+            'max_epochs': 40,
             # stimulus generation hyperparameters
             'frequency': 5,
             'shotNoise': 0.,
@@ -34,38 +34,37 @@ class estimateAngle(pl.LightningModule):
             'kappa_test': 1.,
             'loc_test': 0.
         }
-        self.hyperparameters.update(kwargs)
+        hyperparameterValues.update(kwargs)
+        self.save_hyperparameters(hyperparameterValues)
 
         # set seeds
-        torch.manual_seed(self.hyperparameters['seed'])
-        np.random.seed( self.hyperparameters['seed'] % (2**32-1) )
+        torch.manual_seed(self.hparams.seed)
+        np.random.seed(self.hparams.seed % (2**32-1))
 
         # make model
-        pixelDim = self.hyperparameters['pixelDim']
+        pixelDim = self.hparams.pixelDim
 
         self.model = nn.Sequential(
-                nn.Linear( pixelDim**2, pixelDim),
+                nn.Linear(pixelDim**2, pixelDim),
                 nn.ReLU(),
-                nn.Linear( pixelDim, 20),
+                nn.Linear(pixelDim, 20),
                 nn.ReLU(),
                 nn.Linear(20, 2)
         )
 
         self.cosSim = nn.CosineSimilarity()
-        self.lossFn = lambda x, y: torch.mean( 1. - self.cosSim(x,y) )
+        self.lossFn = lambda x, y: torch.mean(1. - self.cosSim(x, y))
 
     # angle coding functions
     def encodeAngles(self, angles):
-        return torch.stack( (torch.cos(2*angles), torch.sin(2*angles) ), dim=1 )
+        return torch.stack((torch.cos(2*angles), torch.sin(2*angles)), dim=1)
 
     def decodeAngles(self, encodings):
-        return torch.atan2(encodings[:,1], encodings[:,0]) / 2.
-
+        return torch.atan2(encodings[:, 1], encodings[:, 0]) / 2.
 
     def forward(self, images):
         nsamples = images.shape[0]
-        return self.model( images.view(nsamples, -1) )
-
+        return self.model(images.view(nsamples, -1))
 
     def training_step(self, batch, batchidx):
         images = batch['image']
@@ -74,45 +73,42 @@ class estimateAngle(pl.LightningModule):
         encodedTargets = self.encodeAngles(targets)
         prediction = self.forward(images)
 
-        loss = self.lossFn( prediction, encodedTargets )
+        loss = self.lossFn(prediction, encodedTargets)
         self.log('Train Loss', loss.detach())
 
         return loss
 
-
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.hyperparameters['lr'])
-
+        return torch.optim.Adam(self.parameters(), lr=self.hparams.lr)
 
     # data
     def setup(self, basesize=1000, stage=None):
         """generate the datasets"""
-        gratingHyperparams = {key: self.hyperparameters[key] for key in ['frequency', 'shotNoise', 'noiseVar', 'pixelDim']}
+        gratingHyperparams = {key: self.hparams[key] for key in 
+                              ['frequency', 'shotNoise', 'noiseVar', 'pixelDim']
+                              }
 
         trainingAngles = vonmises(
-            self.hyperparameters['kappa_tr'], self.hyperparameters['loc_tr']
+            self.hparams.kappa_tr, self.hparams.loc_tr
             ).rvs(8*basesize) % np.pi
-        valAngles = vonmises(
-            self.hyperparameters['kappa_val'], self.hyperparameters['loc_val']
-            ).rvs(2*basesize) % np.pi
-        testAngles = vonmises(
-            self.hyperparameters['kappa_test'], self.hyperparameters['loc_test']
-            ).rvs(2*basesize) % np.pi
+        valAngles = vonmises(self.hparams.kappa_val, self.hparams.loc_val
+                             ).rvs(2*basesize) % np.pi
+        testAngles = vonmises(self.hparams.kappa_test, self.hparams.loc_test
+                              ).rvs(2*basesize) % np.pi
 
         # generate datasets
-        self.trainingData = GratingDataset( trainingAngles, **gratingHyperparams)
-        #self.valData = GratingDataset( valAngles, **gratingHyperparams)
-        #self.testData = GratingDataset( testAngles, **gratingHyperparams)
-
+        self.trainingData = GratingDataset(trainingAngles, **gratingHyperparams)
+        #self.valData = GratingDataset(valAngles, **gratingHyperparams)
+        #self.testData = GratingDataset(testAngles, **gratingHyperparams)
 
     def train_dataloader(self):
-        return DataLoader(self.trainingData, batch_size=self.hyperparameters['batchsize'], shuffle=False)
+        return DataLoader(self.trainingData,
+                          batch_size=self.hparams.batchsize,
+                          shuffle=False
+                          )
 
-    #def val_dataloader(self):
-    #    return DataLoader(self.valData, batch_size=self.hyperparameters['batchsize'])
+    def val_dataloader(self):
+        return DataLoader(self.valData, batch_size=self.hparams.batchsize)
 
-    #def test_dataloader(self):
-    #    return DataLoader(self.testData, batch_size=self.hyperparameters['batchsize'])
-
-
-
+    def test_dataloader(self):
+        return DataLoader(self.testData, batch_size=self.hparams.batchsize)
