@@ -8,7 +8,11 @@ from torch.utils.data import Dataset
 
 def generateGrating(thetas, frequency=5, pixelDim=201, shotNoise=0., noiseVar=0.):
     """Generated angled grating with specified frequency and orientation"""
-    thetas = torch.as_tensor(thetas)
+    thetas = torch.as_tensor(thetas, dtype=torch.float32)
+
+    # handle single thetat requests
+    if len(thetas.shape) == 0:
+        thetas = torch.tensor([thetas.item()])
 
     xs = torch.linspace(-torch.pi, torch.pi, pixelDim)
     ys = torch.linspace(-torch.pi, torch.pi, pixelDim)
@@ -29,10 +33,12 @@ def generateGrating(thetas, frequency=5, pixelDim=201, shotNoise=0., noiseVar=0.
     noiseLocations = binomial(1, shotNoise, size=(pixelDim, pixelDim))
     noiseMagnitude = normal(scale=noiseVar**0.5, size=(pixelDim, pixelDim))
 
-    Z = torch.clamp(Z+noiseLocations * noiseMagnitude, min=-1., max=1.)
+    Z = torch.clamp(Z + torch.tensor(
+                         noiseLocations * noiseMagnitude, dtype=torch.float32
+                        ), min=-1., max=1.)
 
     r2 = X**2 + Y**2
-    Z[r2 >= 6] = 0.
+    Z[r2 >= 6] = torch.zeros(Z[r2 >= 6].shape)
 
     return Z
 
@@ -81,4 +87,4 @@ def searchForAngle(targetGrating, endpoints, targetResolution, makeGrating):
 
 
 def findOverlap(grating1, grating2):
-    return np.sum(grating1*grating2)
+    return (grating1*grating2).sum()

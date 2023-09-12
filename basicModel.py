@@ -18,8 +18,9 @@ class EstimateAngle(pl.LightningModule):
         hyperparameterValues = {
             # training hyperparameters
             'lr': 1E-3,
-            'batchsize': 100,
+            'batchsize': 32,
             'max_epochs': 40,
+            'dataSize': 1024,
             # stimulus generation hyperparameters
             'frequency': 5,
             'shotNoise': 0.,
@@ -74,23 +75,33 @@ class EstimateAngle(pl.LightningModule):
         prediction = self.forward(images)
 
         loss = self.lossFn(prediction, encodedTargets)
-        self.log('Train Loss', loss.detach())
+        self.log('Train Loss', loss.item())
 
         return loss
+
+    def validation_step(self, batch, batchidx):
+        images = batch['image']
+        targets = batch['angle']
+
+        encodedTargets = self.encodeAngles(targets)
+        prediction = self.forward(images)
+
+        loss = self.lossFn(prediction, encodedTargets)
+        self.log('Val Loss', loss.item())
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.hparams.lr)
 
     # data
-    def setup(self, basesize=1000, stage=None):
+    def setup(self, stage=None):
         """generate the datasets"""
+        basesize = self.hparams.dataSize
         gratingHyperparams = {key: self.hparams[key] for key in 
                               ['frequency', 'shotNoise', 'noiseVar', 'pixelDim']
                               }
 
-        trainingAngles = vonmises(
-            self.hparams.kappa_tr, self.hparams.loc_tr
-            ).rvs(8*basesize) % np.pi
+        trainingAngles = vonmises(self.hparams.kappa_tr, self.hparams.loc_tr
+                                  ).rvs(8*basesize) % np.pi
         valAngles = vonmises(self.hparams.kappa_val, self.hparams.loc_val
                              ).rvs(2*basesize) % np.pi
         testAngles = vonmises(self.hparams.kappa_test, self.hparams.loc_test
@@ -98,17 +109,20 @@ class EstimateAngle(pl.LightningModule):
 
         # generate datasets
         self.trainingData = GratingDataset(trainingAngles, **gratingHyperparams)
-        #self.valData = GratingDataset(valAngles, **gratingHyperparams)
-        #self.testData = GratingDataset(testAngles, **gratingHyperparams)
+        self.valData = GratingDataset(valAngles, **gratingHyperparams)
+        # self.testData = GratingDataset(testAngles, **gratingHyperparams)
 
     def train_dataloader(self):
         return DataLoader(self.trainingData,
                           batch_size=self.hparams.batchsize,
-                          shuffle=False
+                          shuffle=True,
+                          num_workers=2
                           )
 
     def val_dataloader(self):
-        return DataLoader(self.valData, batch_size=self.hparams.batchsize)
+        return DataLoader(self.valData, batch_size=2*self.hparams.dataSize,
+                          num_workers=2
+                          )
 
     def test_dataloader(self):
         return DataLoader(self.testData, batch_size=self.hparams.batchsize)
