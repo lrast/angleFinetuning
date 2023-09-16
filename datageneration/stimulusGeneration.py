@@ -10,18 +10,18 @@ def generateGrating(thetas, frequency=5, pixelDim=201, shotNoise=0., noiseVar=0.
     """Generated angled grating with specified frequency and orientation"""
     thetas = torch.as_tensor(thetas, dtype=torch.float32)
 
-    # handle single thetat requests
-    if len(thetas.shape) == 0:
+    squeezeOutput = False
+    if len(thetas.shape) == 0:  # single theta request
         thetas = torch.tensor([thetas.item()])
+        squeezeOutput = True
 
     xs = torch.linspace(-torch.pi, torch.pi, pixelDim)
     ys = torch.linspace(-torch.pi, torch.pi, pixelDim)
 
     X, Y = torch.meshgrid(xs, ys, indexing='ij')
 
-    if len(thetas.shape) != 0:
-        X = X.repeat((len(thetas), 1, 1))
-        Y = Y.repeat((len(thetas), 1, 1))
+    X = X.repeat((len(thetas), 1, 1))
+    Y = Y.repeat((len(thetas), 1, 1))
 
     Z = torch.cos(frequency * (
                     Y*torch.cos(thetas)[:, None, None] + 
@@ -30,8 +30,10 @@ def generateGrating(thetas, frequency=5, pixelDim=201, shotNoise=0., noiseVar=0.
                   )
 
     # add noise to the generated gratings
-    noiseLocations = binomial(1, shotNoise, size=(pixelDim, pixelDim))
-    noiseMagnitude = normal(scale=noiseVar**0.5, size=(pixelDim, pixelDim))
+    noiseLocations = binomial(1, shotNoise,
+                              size=(len(thetas), pixelDim, pixelDim))
+    noiseMagnitude = normal(scale=noiseVar**0.5,
+                            size=(len(thetas), pixelDim, pixelDim))
 
     Z = torch.clamp(Z + torch.tensor(
                          noiseLocations * noiseMagnitude, dtype=torch.float32
@@ -39,6 +41,9 @@ def generateGrating(thetas, frequency=5, pixelDim=201, shotNoise=0., noiseVar=0.
 
     r2 = X**2 + Y**2
     Z[r2 >= 6] = torch.zeros(Z[r2 >= 6].shape)
+
+    if squeezeOutput:
+        return Z[0]
 
     return Z
 

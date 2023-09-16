@@ -1,4 +1,5 @@
 import wandb
+import glob
 import numpy as np
 
 from basicModel import EstimateAngle
@@ -37,18 +38,87 @@ def InitialSweep_TrainDistributionAndNoise():
                               kappa_val=wandb.config['kappa_tr'],
                               max_epochs=3000
                               )
-        runEarlyStoppingTraining(model, directory=f'initialSweepResults/{dirName}')
+        runEarlyStoppingTraining(model, 
+                                 directory=f'initialSweepResults/{dirName}')
 
     sweepid = wandb.sweep(sweep=sweepCFG, project='EstimateAngle')
     wandb.agent(sweepid, sweepRun)
 
 
-def loadData_initialSweep(kappa_tr, loc_tr, noiseVar, 
+def dataFile_initialSweep(kappa_tr, loc_tr, noiseVar, 
                           pixelDim, reps, shotNoise):
-    pass
+    dataDirectory = 'initialSweepResults/' + str(hash((kappa_tr, loc_tr,
+                                                 noiseVar, pixelDim, reps,
+                                                 shotNoise)))[1:]
+
+    return glob.glob(dataDirectory+'/*')[0]
 
 
+#  Experinment 2: A bit of a re-run of experiment 1, with a bug fix
+#  knowing the right noise level
+#  Goal: sensitivity scaling with 
 
 
+def Experiment2_trainingSetSize():
+    """ What is the impact of training on distributions concentrated
+        on different means?
+        How is this modified by  
+    """
+
+    defaultConfig = {
+                     'pixelDim': 101,
+                     'shotNoise': 0.8,
+                     'noiseVar': 20.
+                     }
+
+    concentratedSweep = {
+        'method': 'grid',
+        'name': 'concentrated',
+        'parameters': {
+            'reps': {'values': [0, 1]},
+            'loc_tr': {'values': [0., np.pi/3]},
+            'kappa_tr': {'values': [4.]},
+            'dataSize': {'values': [1024, 2048, 4096]}
+        }
+    }
+
+    flatSweep = {
+        'method': 'grid',
+        'name': 'flat',
+        'parameters': {
+            'reps': {'values': [0, 1]},
+            'loc_tr': {'values': [0.]},
+            'kappa_tr': {'values': [1E-16]},
+            'dataSize': {'values': [1024, 2048, 4096]}
+        }
+    }
+
+    def sweepRun():
+        """An individual training run for a sweep"""
+        wandb.init()
+
+        print(dict(wandb.config))
+
+        dirName = str(hash(tuple(dict(wandb.config).values())))[1:]
+
+        model = EstimateAngle(**defaultConfig,
+                              **wandb.config,
+                              loc_val=wandb.config['loc_tr'],
+                              kappa_val=wandb.config['kappa_tr'],
+                              max_epochs=3000
+                              )
+        runEarlyStoppingTraining(model, 
+                                 directory=f'Experiment2/{dirName}')
+
+    ConcentratedSweepID = wandb.sweep(sweep=concentratedSweep,
+                                      project='EstimateAngle')
+    FlatSweepID = wandb.sweep(sweep=flatSweep, project='EstimateAngle')
+    wandb.agent(ConcentratedSweepID, sweepRun)
+    wandb.agent(FlatSweepID, sweepRun)
 
 
+def dataFile_Experiment2(dataSize, kappa_tr, loc_tr, reps):
+    dataDirectory = 'Experiment2/' + str(hash((dataSize, kappa_tr, 
+                                              loc_tr, reps)))[1:]
+
+    return glob.glob(dataDirectory+'/*')[0]
