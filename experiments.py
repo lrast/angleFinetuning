@@ -73,23 +73,23 @@ def Experiment2_trainingSetSize():
 
     concentratedSweep = {
         'method': 'grid',
-        'name': 'concentrated',
+        'name': 'Exp2concentrated',
         'parameters': {
             'reps': {'values': [0, 1]},
             'loc_tr': {'values': [0., np.pi/3]},
             'kappa_tr': {'values': [4.]},
-            'dataSize': {'values': [1024, 2048, 4096]}
+            'dataSize': {'values': [512, 1024, 2048]}
         }
     }
 
     flatSweep = {
         'method': 'grid',
-        'name': 'flat',
+        'name': 'Exp2flat',
         'parameters': {
             'reps': {'values': [0, 1]},
             'loc_tr': {'values': [0.]},
             'kappa_tr': {'values': [1E-16]},
-            'dataSize': {'values': [1024, 2048, 4096]}
+            'dataSize': {'values': [512, 1024, 2048]}
         }
     }
 
@@ -112,8 +112,8 @@ def Experiment2_trainingSetSize():
 
     ConcentratedSweepID = wandb.sweep(sweep=concentratedSweep,
                                       project='EstimateAngle')
-    FlatSweepID = wandb.sweep(sweep=flatSweep, project='EstimateAngle')
     wandb.agent(ConcentratedSweepID, sweepRun)
+    FlatSweepID = wandb.sweep(sweep=flatSweep, project='EstimateAngle')
     wandb.agent(FlatSweepID, sweepRun)
 
 
