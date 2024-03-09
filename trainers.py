@@ -2,10 +2,6 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
-from basicModel import EstimateAngle
-import wandb
-import numpy as np
-
 
 def runBasicTraining(model):
     """Simple training behavior with checkpointing"""

@@ -116,12 +116,14 @@ class EstimateAngle(pl.LightningModule):
         return DataLoader(self.trainingData,
                           batch_size=self.hparams.batchsize,
                           shuffle=True,
-                          num_workers=2
+                          num_workers=2,
+                          persistent_workers=True
                           )
 
     def val_dataloader(self):
         return DataLoader(self.valData, batch_size=2*self.hparams.dataSize,
-                          num_workers=2
+                          num_workers=2,
+                          persistent_workers=True
                           )
 
     def test_dataloader(self):
