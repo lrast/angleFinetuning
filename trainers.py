@@ -20,9 +20,9 @@ def runBasicTraining(model):
     trainer.fit(model)
 
 
-def runEarlyStoppingTraining(model, directory, patience=200):
+def runEarlyStoppingTraining(model, directory, project='EstimateAngle', patience=200):
     """Simple training behavior with checkpointing"""
-    wandb_logger = WandbLogger(project='EstimateAngle')
+    wandb_logger = WandbLogger(project=project)
 
     earlystopping_callback = EarlyStopping(monitor='Val Loss', mode='min', 
                                            patience=patience
