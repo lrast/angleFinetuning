@@ -25,7 +25,7 @@ def Experiment4_baselines():
 
     for rep in range(6):
         """An individual training run for a sweep"""
-        wandb.init()
+        wandb.init(reinit=True)
         print('################ rep #############')
         model = EstimateAngle(**defaultConfig,
                               max_epochs=3000
