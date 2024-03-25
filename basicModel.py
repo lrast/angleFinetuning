@@ -89,6 +89,16 @@ class EstimateAngle(pl.LightningModule):
         loss = self.lossFn(prediction, encodedTargets)
         self.log('Val Loss', loss.item())
 
+    def test_step(self, batch, batchidx):
+        images = batch['image']
+        targets = batch['angle']
+
+        encodedTargets = self.encodeAngles(targets)
+        prediction = self.forward(images)
+
+        loss = self.lossFn(prediction, encodedTargets)
+        return loss
+
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.hparams.lr)
 
@@ -110,7 +120,7 @@ class EstimateAngle(pl.LightningModule):
         # generate datasets
         self.trainingData = GratingDataset(trainingAngles, **gratingHyperparams)
         self.valData = GratingDataset(valAngles, **gratingHyperparams)
-        # self.testData = GratingDataset(testAngles, **gratingHyperparams)
+        self.testData = GratingDataset(testAngles, **gratingHyperparams)
 
     def train_dataloader(self):
         return DataLoader(self.trainingData,
@@ -127,4 +137,4 @@ class EstimateAngle(pl.LightningModule):
                           )
 
     def test_dataloader(self):
-        return DataLoader(self.testData, batch_size=self.hparams.batchsize)
+        return DataLoader(self.testData, batch_size=2*self.hparams.dataSize)
