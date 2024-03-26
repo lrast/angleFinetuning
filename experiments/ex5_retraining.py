@@ -15,9 +15,9 @@ def Experiment5_retraining():
         Does a pre-trained network suffer relative to a naive network under finetuning
     """
 
-    dataSizes = [256, 512, 1024]
+    dataSizes = [256, 1024]
 
-    parameterSets = [(1, 2), (1, 4)]
+    parameterSets = [(8., 0.), (8., torch.pi/2)]
 
     results = []
 
@@ -76,13 +76,15 @@ def initialize_and_train(rep, datasize, parameters, directory, init_ckpt=None):
                            'dataSize': datasize}
 
     if init_ckpt is None:
-        model = EstimateAngle(**defaultConfig, **distribution_params, max_epochs=3000)
+        model = EstimateAngle(**defaultConfig, **distribution_params, max_epochs=2500)
     else:
         model = EstimateAngle.load_from_checkpoint(init_ckpt, ** defaultConfig,
                                                    **distribution_params,
                                                    seed=torch.random.seed(),
-                                                   max_epochs=30000)
-    runEarlyStoppingTraining(model, directory)
+                                                   max_epochs=2500)
+
+    runEarlyStoppingTraining(model, directory, project='angleFineTuning')
+    wandb.finish()
 
     # evaluate how well we did
     batch = next(iter(model.test_dataloader()))
@@ -92,8 +94,8 @@ def initialize_and_train(rep, datasize, parameters, directory, init_ckpt=None):
 
 def get_model_directory(rep_par, datasize_par, parameters_par,
                         rep_child=None, datasize_child=None, parameters_child=None):
-    parent_name = str(hash((rep_par, datasize_par, parameters_par)))[-1:]
-    child_name = str(hash((rep_child, datasize_child, parameters_child)))[-1:]
+    parent_name = str(hash((rep_par, datasize_par, parameters_par)))
+    child_name = str(hash((rep_child, datasize_child, parameters_child)))
 
     if rep_child is None:
         return f'trainedParameters/Exp5-retrain/{parent_name}/'

@@ -15,12 +15,12 @@ run_training = lambda model, directory: runEarlyStoppingTraining(model, director
 
 
 def adapt_fit_loop(checkpoint, directory,
-                   initialDist=np.ones(500),
+                   initial_dist=np.ones(500),
                    run_training=run_training, fit_fisher=fit_fisher,
                    criterion=0.1, max_iter=100):
     """ Running the adaptation, analysis loop """
 
-    stimulus_dist = AngleDistribution(initialDist)
+    stimulus_dist = AngleDistribution(initial_dist)
 
     converged = False
     count = 0
