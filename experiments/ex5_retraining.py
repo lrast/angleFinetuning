@@ -92,6 +92,59 @@ def initialize_and_train(rep, datasize, parameters, directory, init_ckpt=None):
     return loss
 
 
+def evaluate_models():
+    """ The evaluations saved during training fail because they don't represent the best checkpoint """
+    parameterSets = [(8., 0.), (8., torch.pi/2)]
+
+    results = []
+
+    for rep in range(3):
+        for datasize in  [256, 1024]:
+            for i, parameters in enumerate(parameterSets):
+                print(rep, datasize, parameters)
+                parentdir = get_model_directory(rep, datasize, parameters)
+                ckpt = glob.glob(parentdir + '*.ckpt')[0]
+                model = EstimateAngle.load_from_checkpoint(ckpt)
+                model.setup()
+                batch = next(iter(model.test_dataloader()))
+                batch['image'] = batch['image'].to(device = model.device)
+                batch['angle'] = batch['angle'].to(device = model.device)
+
+                loss = model.test_step(batch, 0).item()
+
+                results_row = {'rep': rep, 'datasize': datasize, 'loc': parameters[1],
+                               'kappa': parameters[0],
+                               'rep_init': None, 'datasize_init': None, 'loc_init': None,
+                               'kappa_init': None, 'loss': loss}
+
+                results.append(results_row)
+
+                for rep_ft in range(3):
+                    for datasize_ft in [256, 1024]:
+                        parameters_ft = parameterSets[(i+1) % 2]
+
+                        childdir = get_model_directory(rep, datasize, parameters,
+                                                       rep_ft, datasize_ft, parameters_ft)
+                        ckpt = glob.glob(childdir + '*.ckpt')[0]
+                        model = EstimateAngle.load_from_checkpoint(ckpt)
+                        model.setup()
+                        batch = next(iter(model.test_dataloader()))
+                        batch['image'] = batch['image'].to(device = model.device)
+                        batch['angle'] = batch['angle'].to(device = model.device)
+
+                        loss = model.test_step(batch, 0).item()
+                        
+                        results_row = {'rep': rep_ft, 'datasize': datasize_ft,
+                                       'loc': parameters_ft[1], 'kappa': parameters_ft[0],
+                                       'rep_init': rep, 'datasize_init': datasize,
+                                       'loc_init': parameters[1], 'kappa_init': parameters[0],
+                                       'loss': loss}
+
+                        results.append(results_row)
+
+    pd.DataFrame(results).to_csv('experiment_result/ex5_scan_optimal.csv', index=False)
+
+
 def get_model_directory(rep_par, datasize_par, parameters_par,
                         rep_child=None, datasize_child=None, parameters_child=None):
     parent_name = str(hash((rep_par, datasize_par, parameters_par)))
