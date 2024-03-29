@@ -99,7 +99,7 @@ def evaluate_models():
     results = []
 
     for rep in range(3):
-        for datasize in  [256, 1024]:
+        for datasize in [256, 1024]:
             for i, parameters in enumerate(parameterSets):
                 print(rep, datasize, parameters)
                 parentdir = get_model_directory(rep, datasize, parameters)
@@ -107,8 +107,8 @@ def evaluate_models():
                 model = EstimateAngle.load_from_checkpoint(ckpt)
                 model.setup()
                 batch = next(iter(model.test_dataloader()))
-                batch['image'] = batch['image'].to(device = model.device)
-                batch['angle'] = batch['angle'].to(device = model.device)
+                batch['image'] = batch['image'].to(device=model.device)
+                batch['angle'] = batch['angle'].to(device=model.device)
 
                 loss = model.test_step(batch, 0).item()
 
@@ -129,8 +129,8 @@ def evaluate_models():
                         model = EstimateAngle.load_from_checkpoint(ckpt)
                         model.setup()
                         batch = next(iter(model.test_dataloader()))
-                        batch['image'] = batch['image'].to(device = model.device)
-                        batch['angle'] = batch['angle'].to(device = model.device)
+                        batch['image'] = batch['image'].to(device=model.device)
+                        batch['angle'] = batch['angle'].to(device=model.device)
 
                         loss = model.test_step(batch, 0).item()
                         
