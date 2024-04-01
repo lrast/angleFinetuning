@@ -2,6 +2,8 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
+import wandb
+
 
 def runBasicTraining(model):
     """Simple training behavior with checkpointing"""
@@ -22,6 +24,8 @@ def runBasicTraining(model):
 
 def runEarlyStoppingTraining(model, directory, project='EstimateAngle', patience=200):
     """Simple training behavior with checkpointing"""
+    wandb.init()
+
     wandb_logger = WandbLogger(project=project)
 
     earlystopping_callback = EarlyStopping(monitor='Val Loss', mode='min', 
@@ -38,3 +42,7 @@ def runEarlyStoppingTraining(model, directory, project='EstimateAngle', patience
                       callbacks=[checkpoint_callback, earlystopping_callback]
                       )
     trainer.fit(model)
+
+    wandb.finish()
+
+    return trainer.checkpoint_callback.best_model_path
