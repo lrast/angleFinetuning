@@ -77,14 +77,12 @@ def initialize_and_train(rep, datasize, parameters, directory, init_ckpt=None,
                            'dataSize': datasize}
 
     if init_ckpt is None:
-        print('No checkpoint')
-        model = EstimateAngle(**defaultConfig, **distribution_params, max_epochs=2500)
+        model = EstimateAngle(**defaultConfig, **distribution_params, max_epochs=2000)
     else:
-        print('With checkpoint')
         model = EstimateAngle.load_from_checkpoint(init_ckpt, **defaultConfig,
                                                    **distribution_params,
                                                    seed=torch.random.seed(),
-                                                   max_epochs=2500)
+                                                   max_epochs=2000)
         if freeze:
             # freeze the lower parameters of the model
             model.model[0].requires_grad_(False)
@@ -98,6 +96,9 @@ def initialize_and_train(rep, datasize, parameters, directory, init_ckpt=None,
                                                     **distribution_params)
     test_model.setup()
     batch = next(iter(model.test_dataloader()))
+    batch['image'] = batch['image'].to(device=test_model.device)
+    batch['angle'] = batch['angle'].to(device=test_model.device)
+    
     loss = test_model.test_step(batch, 0).item()
     return loss, final_ckpt
 
@@ -121,7 +122,7 @@ def get_model_directory(rep_par, datasize_par, parameters_par,
 
 
 # load and reevaluate models
-def evaluate_models():
+def evaluate_models(freeze=False, name='ex5_scan_optimal.csv'):
     """ The evaluations saved during training failed in v1 because they didn't
     represent the best checkpoint """
     parameterSets = [(8., 0.), (8., torch.pi/2)]
@@ -132,7 +133,7 @@ def evaluate_models():
         for datasize in [256, 1024]:
             for i, parameters in enumerate(parameterSets):
                 print(rep, datasize, parameters)
-                parentdir = get_model_directory(rep, datasize, parameters)
+                parentdir = get_model_directory(rep, datasize, parameters, freeze=freeze)
                 ckpt = glob.glob(parentdir + '*.ckpt')[0]
                 model = EstimateAngle.load_from_checkpoint(ckpt)
                 model.setup()
@@ -154,7 +155,8 @@ def evaluate_models():
                         parameters_ft = parameterSets[(i+1) % 2]
 
                         childdir = get_model_directory(rep, datasize, parameters,
-                                                       rep_ft, datasize_ft, parameters_ft)
+                                                       rep_ft, datasize_ft, parameters_ft,
+                                                       freeze=freeze)
                         ckpt = glob.glob(childdir + '*.ckpt')[0]
                         model = EstimateAngle.load_from_checkpoint(ckpt)
                         model.setup()
@@ -172,4 +174,5 @@ def evaluate_models():
 
                         results.append(results_row)
 
-    pd.DataFrame(results).to_csv('experiment_result/ex5_scan_optimal.csv', index=False)
+    pd.DataFrame(results).to_csv('experiment_result/' + name, index=False)
+
