@@ -24,7 +24,7 @@ def runBasicTraining(model):
 
 def runEarlyStoppingTraining(model, directory, project='EstimateAngle', patience=200):
     """Simple training behavior with checkpointing"""
-    wandb.init()
+    wandb.init(reinit=True)
 
     wandb_logger = WandbLogger(project=project)
 
