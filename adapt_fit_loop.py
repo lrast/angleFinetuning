@@ -1,5 +1,6 @@
 # implementation of the adaptation, Fisher information fit loop
 import numpy as np
+import pandas as pd
 
 from adaptableModel import AngleDistribution, AdaptableEstimator
 from discriminationAnalysis import Fisher_smooth_fits
@@ -19,10 +20,12 @@ def adapt_fit_loop(checkpoint, directory,
                    criterion=0.1, replicates=5, max_iter=100):
     """ Running the adaptation, analysis loop """
 
-    stimulus_dist = AngleDistribution(initial_dist)
+    stimulus_dist = AngleDistribution(initial_dist, [0, np.pi])
 
     converged = False
     count = 0
+
+    rows = [{'measurement': 'probability', 'iteration': count, 'data': initial_dist}]
 
     while not converged:
         print('#############################', count, '#############################')
@@ -34,8 +37,12 @@ def adapt_fit_loop(checkpoint, directory,
                                                             max_epochs=1000
                                                             )
 
-            run_training(model, directory+f'iter{count}')
-            fisher_curves.append(fit_fisher(model))
+            run_training(model, directory+f'/iter{count}')
+            fisher_info = fit_fisher(model)
+
+            fisher_curves.append(fisher_info)
+            row = {'measurement': 'FI', 'iteration': count, 'data': fisher_info}
+            rows.append(row)
 
         # termination criterion: uniform Fisher information
         smoothed_mean_fisher = moving_average(np.mean(fisher_curves, axis=0))
@@ -50,7 +57,11 @@ def adapt_fit_loop(checkpoint, directory,
         if not converged:
             # make new stimulus distribution
             new_values = stimulus_dist.values / smoothed_mean_fisher**0.5
-            stimulus_dist = AngleDistribution(new_values)
+
+            rows.append({'measurement': 'probability', 'iteration': count+1, 'data': new_values})
+            stimulus_dist = AngleDistribution(new_values, [0, np.pi])
+
+    pd.DataFrame(rows).to_pickle(directory + '/iterate_data.pickle')
 
 
 def moving_average(fisher_curve, width=31):

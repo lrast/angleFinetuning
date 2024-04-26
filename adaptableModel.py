@@ -10,10 +10,11 @@ from basicModel import EstimateAngle
 
 class AngleDistribution(object):
     """AnglePDF: our discrete parameterized pdfs over angles"""
-    def __init__(self, values):
+    def __init__(self, values, domain):
         super(AngleDistribution, self).__init__()
         self.values = values
         self.npoints = len(values)
+        self.domain = domain
 
         # Linear interpolation between points, the sum is a trapezoid integral
         bin_probs = np.convolve(values, np.array([0.5, 0.5]), mode='valid')
@@ -26,8 +27,9 @@ class AngleDistribution(object):
         # improvement: also sample the linear interpolation between points
         # this would certainly help with smoothing
 
-        bin_midpoints = np.convolve(np.linspace(-np.pi, np.pi, self.npoints),
-                                    np.array([0.5, 0.5]), mode='valid')
+        bin_midpoints = np.convolve(
+                            np.linspace(self.domain[0], self.domain[1], self.npoints),
+                            np.array([0.5, 0.5]), mode='valid')
 
         bin_inds = np.random.choice(range(self.npoints-1), size=(N,), p=self.bin_probs)
 
