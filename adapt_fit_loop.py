@@ -1,4 +1,5 @@
 # implementation of the adaptation, Fisher information fit loop
+import torch
 import numpy as np
 import pandas as pd
 
@@ -34,7 +35,8 @@ def adapt_fit_loop(checkpoint, directory,
         for replicate in range(replicates):
             model = AdaptableEstimator.load_from_checkpoint(checkpoint,
                                                             angle_dist=stimulus_dist,
-                                                            max_epochs=1000
+                                                            max_epochs=1000,
+                                                            seed=torch.random.seed()
                                                             )
 
             run_training(model, directory+f'/iter{count}')

@@ -33,5 +33,5 @@ def adaptation_experiment():
                    'concentrated': glob.glob('trainedParameters/Exp4_conc/rep0/epoch*')[0]}
 
     for name, checkpoint in checkpoints.items():
-        to_save = 'trainedParameters/Exp6/{name}'
+        to_save = f'trainedParameters/Exp6/{name}'
         adapt_fit_loop(checkpoint, to_save, max_iter=7)
