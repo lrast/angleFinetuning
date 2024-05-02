@@ -1,8 +1,9 @@
+import torch
+import wandb
+
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
-
-import wandb
 
 
 def runBasicTraining(model):
@@ -46,3 +47,31 @@ def runEarlyStoppingTraining(model, directory, project='EstimateAngle', patience
     wandb.finish()
 
     return trainer.checkpoint_callback.best_model_path
+
+
+def trainEarlyStoppingAndLoad(model, directory, project='EstimateAngle', patience=200):
+    """Train with checkpointing, and load the best weights into the model"""
+    wandb.init(reinit=True)
+
+    wandb_logger = WandbLogger(project=project)
+
+    earlystopping_callback = EarlyStopping(monitor='Val Loss', mode='min', 
+                                           patience=patience
+                                           )
+    checkpoint_callback = ModelCheckpoint(dirpath=directory,
+                                          every_n_epochs=1, 
+                                          save_top_k=1,
+                                          monitor='Val Loss'
+                                          )
+
+    trainer = Trainer(logger=wandb_logger,
+                      max_epochs=model.hparams.max_epochs,
+                      callbacks=[checkpoint_callback, earlystopping_callback]
+                      )
+    trainer.fit(model)
+
+    wandb.finish()
+
+    best_model_data = torch.load(trainer.checkpoint_callback.best_model_path,
+                                 map_location=model.device)
+    model.load_state_dict( best_model_data['state_dict'] )

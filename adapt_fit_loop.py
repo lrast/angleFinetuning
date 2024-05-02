@@ -6,13 +6,13 @@ import pandas as pd
 from adaptableModel import AngleDistribution, AdaptableEstimator
 from discriminationAnalysis import Fisher_smooth_fits
 
-from trainers import runEarlyStoppingTraining
+from trainers import trainEarlyStoppingAndLoad
 
 fit_fisher = lambda model: Fisher_smooth_fits(model, 0., np.pi, 
                                               N_mean=10000, N_cov=500, Samp_cov=500)
 
-run_training = lambda model, directory: runEarlyStoppingTraining(model, directory,
-                                                                 project='angleFineTuning')
+run_training = lambda model, directory: trainEarlyStoppingAndLoad(model, directory,
+                                                                  project='angleFineTuning')
 
 
 def adapt_fit_loop(checkpoint, directory,
@@ -60,7 +60,7 @@ def adapt_fit_loop(checkpoint, directory,
             # make new stimulus distribution
             new_values = stimulus_dist.values / smoothed_mean_fisher**0.5
 
-            rows.append({'measurement': 'probability', 'iteration': count+1, 'data': new_values})
+            rows.append({'measurement': 'probability', 'iteration': count, 'data': new_values})
             stimulus_dist = AngleDistribution(new_values, [0, np.pi])
 
     pd.DataFrame(rows).to_pickle(directory + '/iterate_data.pickle')
