@@ -13,7 +13,8 @@ def runBasicTraining(model):
 
     checkpoint_callback = ModelCheckpoint(every_n_epochs=10, 
                                           save_top_k=4,
-                                          monitor='Train Loss'
+                                          monitor='Train Loss',
+                                          save_weights_only=True
                                           )
 
     trainer = Trainer(logger=wandb_logger,
@@ -35,7 +36,8 @@ def runEarlyStoppingTraining(model, directory, project='EstimateAngle', patience
     checkpoint_callback = ModelCheckpoint(dirpath=directory,
                                           every_n_epochs=1, 
                                           save_top_k=1,
-                                          monitor='Val Loss'
+                                          monitor='Val Loss',
+                                          save_weights_only=True
                                           )
 
     trainer = Trainer(logger=wandb_logger,
@@ -61,7 +63,8 @@ def trainEarlyStoppingAndLoad(model, directory, project='EstimateAngle', patienc
     checkpoint_callback = ModelCheckpoint(dirpath=directory,
                                           every_n_epochs=1, 
                                           save_top_k=1,
-                                          monitor='Val Loss'
+                                          monitor='Val Loss',
+                                          save_weights_only=True
                                           )
 
     trainer = Trainer(logger=wandb_logger,

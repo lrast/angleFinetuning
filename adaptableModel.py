@@ -12,7 +12,7 @@ class AngleDistribution(object):
     """AnglePDF: our discrete parameterized pdfs over angles"""
     def __init__(self, values, domain):
         super(AngleDistribution, self).__init__()
-        self.values = values
+        self.values = values / values.sum()
         self.npoints = len(values)
         self.domain = domain
 
