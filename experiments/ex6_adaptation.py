@@ -59,10 +59,14 @@ def initialization_effect():
         directory = f'trainedParameters/Exp6_init/rep{rep}/'
 
         init_model = EstimateAngle(**defaultConfig, max_epochs=1000)
+        
+        dummy = Trainer(max_epochs=0)
+        dummy.fit(init_model)
 
-        init_model.save_checkpoint(directory + 'initialized.ckpt')
+        dummy.save_checkpoint(directory + 'initialized.ckpt')
         for retrained in range(3):
-            model = EstimateAngle.load_from_checkpoint(directory + 'initialized.ckpt')
+            model = EstimateAngle.load_from_checkpoint(directory + 'initialized.ckpt',
+                                                       seed=torch.random.seed())
 
             trainEarlyStoppingAndLoad(model, directory + f'retrained{retrained}')
             fi = Fisher_smooth_fits(model, 0., np.pi, N_mean=10000, N_cov=500, Samp_cov=500)
@@ -71,10 +75,10 @@ def initialization_effect():
             row_data.append(row)
 
         for state_update in range(3):
-            model = EstimateAngle(**defaultConfig, max_epochs=1000)
+            model = EstimateAngle(**defaultConfig, max_epochs=1000, seed=torch.random.seed())
             model.load_state_dict(init_model.state_dict())
 
-            trainEarlyStoppingAndLoad(model, directory + f'state_update{retrained}')
+            trainEarlyStoppingAndLoad(model, directory + f'state_update{state_update}')
             fi = Fisher_smooth_fits(model, 0., np.pi, N_mean=10000, N_cov=500, Samp_cov=500)
 
             row = {'rep': rep, 'method': 'set state', 'Fisher': fi}
@@ -95,7 +99,8 @@ def initialization_effect_2():
                      'pixelDim': 101,
                      'shotNoise': 0.8,
                      'noiseVar': 20.,
-                     'dataSize': 512
+                     'dataSize': 512,
+                     'max_epochs': 1000
                      }
 
     preTrainConfig = {
@@ -121,8 +126,7 @@ def initialization_effect_2():
         for pretrain in ['weights', 'all']:
             directory = f'trainedParameters/Exp6_init_2/pre{pretrain}/rep{rep}/'
 
-            init_model = EstimateAngle(**defaultConfig, **preTrainConfig,
-                                       max_epochs=1000)
+            init_model = EstimateAngle(**defaultConfig, **preTrainConfig)
 
             weights_only = (True if pretrain == 'weights' else False)
 
