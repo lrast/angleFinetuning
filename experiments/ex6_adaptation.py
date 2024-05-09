@@ -1,5 +1,6 @@
 # running through a few iterations of the adaptation process
 import glob
+import torch
 import numpy as np
 import pandas as pd
 
@@ -7,7 +8,7 @@ from pytorch_lightning import Trainer
 
 from basicModel import EstimateAngle
 from adapt_fit_loop import adapt_fit_loop
-from trainers import trainEarlyStoppingAndLoad
+from trainers import trainEarlyStoppingAndLoad, trainEarlyStoppingAndLoad_customTest
 from discriminationAnalysis import Fisher_smooth_fits
 
 
@@ -44,7 +45,6 @@ def adaptation_experiment():
 
 def initialization_effect():
     # how big is the impact of initialization on the learned results?
-    directory = 'trainedParameters/Exp6_'
 
     defaultConfig = {
                      'pixelDim': 101,
@@ -81,3 +81,66 @@ def initialization_effect():
             row_data.append(row)
 
     pd.DataFrame(row_data).to_pickle('experiment_result/ex6_initialization.pickle')
+
+
+def initialization_effect_2():
+    """
+        The objective of this experiment is to determine whether saving only the weights
+        is sufficient to remove the Fisher information correlations that result from
+        pretraining.
+        Essentially, do we have to search more for the origin of trajectory correlations?
+    """
+
+    defaultConfig = {
+                     'pixelDim': 101,
+                     'shotNoise': 0.8,
+                     'noiseVar': 20.,
+                     'dataSize': 512
+                     }
+
+    preTrainConfig = {
+                     'loc_tr': np.pi/2,
+                     'kappa_tr': 8.,
+                     'loc_val': np.pi / 2,
+                     'kappa_val': 8.
+                    }
+
+    postTrainConfig = {
+                     'loc_tr': 0.0,
+                     'kappa_tr': 0.1,
+                     'loc_val': 0.0,
+                     'kappa_val': 0.1
+                    }
+
+    row_data = []
+
+    def get_Fisher(model): return Fisher_smooth_fits(model, 0., np.pi, N_mean=10000,
+                                                     N_cov=500, Samp_cov=500)
+
+    for rep in range(3):
+        for pretrain in ['weights', 'all']:
+            directory = f'trainedParameters/Exp6_init_2/pre{pretrain}/rep{rep}/'
+
+            init_model = EstimateAngle(**defaultConfig, **preTrainConfig,
+                                       max_epochs=1000)
+
+            weights_only = (True if pretrain == 'weights' else False)
+
+            init_ckpt = trainEarlyStoppingAndLoad_customTest(init_model, directory+'init/',
+                                                             save_weights_only=weights_only)
+            fi = get_Fisher(init_model)
+
+            row = {'rep': rep, 'method': 'init', 'Fisher': fi}
+            row_data.append(row)
+
+            for retrained in range(6):
+                model = EstimateAngle.load_from_checkpoint(init_ckpt, **postTrainConfig,
+                                                           seed=torch.random.seed())
+
+                trainEarlyStoppingAndLoad(model, directory + f'retrained{retrained}')
+                fi = get_Fisher(model)
+
+                row = {'rep': rep, 'method': pretrain, 'Fisher': fi}
+                row_data.append(row)
+
+    pd.DataFrame(row_data).to_pickle('experiment_result/ex6_init2.pickle')
