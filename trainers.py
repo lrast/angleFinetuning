@@ -82,7 +82,9 @@ def trainEarlyStoppingAndLoad(model, directory, project='EstimateAngle', patienc
 
 def trainEarlyStoppingAndLoad_customTest(model, directory, project='EstimateAngle',
                                          patience=200, save_weights_only=True):
-    """Train with checkpointing, and load the best weights into the model"""
+    """Train with checkpointing, and load the best weights into the model
+    Able to save only the weights or the trainer state as well.
+    """
     wandb.init(reinit=True)
 
     wandb_logger = WandbLogger(project=project)
