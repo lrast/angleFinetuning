@@ -24,7 +24,7 @@ def runBasicTraining(model):
     trainer.fit(model)
 
 
-def runEarlyStoppingTraining(model, directory, project='EstimateAngle', patience=200):
+def runEarlyStoppingTraining(model, directory, project='EstimateAngle', patience=200, **trainer_kwargs):
     """Simple training behavior with checkpointing"""
     wandb.init(reinit=True)
 
@@ -37,12 +37,14 @@ def runEarlyStoppingTraining(model, directory, project='EstimateAngle', patience
                                           every_n_epochs=1, 
                                           save_top_k=1,
                                           monitor='Val Loss',
-                                          save_weights_only=True
+                                          save_weights_only=True,
+                                          save_last=False
                                           )
 
     trainer = Trainer(logger=wandb_logger,
                       max_epochs=model.hparams.max_epochs,
-                      callbacks=[checkpoint_callback, earlystopping_callback]
+                      callbacks=[checkpoint_callback, earlystopping_callback],
+                      **trainer_kwargs
                       )
     trainer.fit(model)
 
