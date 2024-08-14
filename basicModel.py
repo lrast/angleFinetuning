@@ -207,3 +207,83 @@ class EstimateAngle_Faces(EstimateAngle):
         self.log('Linear Val Loss', linear_loss.item())
         super(EstimateAngle_Faces, self).validation_step(batch, batchidx)
 
+
+class EstimateAngle_Faces_final(EstimateAngle):
+    """EstimateAngle_Faces same as EstimateAngle above, but uses the faces dataset
+    """
+    def __init__(self, **kwargs):
+        pixelDim = 64
+        hidden_dims = (30, 10)
+
+        hyperparameterValues = {
+            # stimulus generation hyperparameters
+            'frequency': 0,
+            'shotNoise': 0.,
+            'noiseVar': 0.,
+            'pixelDim': pixelDim,
+            'seed': torch.random.seed(),
+            'max_epochs': 2000,
+            'gradient_clip_val': 0.5
+        }
+        hyperparameterValues.update(kwargs)
+        super(EstimateAngle_Faces_final, self).__init__(**hyperparameterValues)
+
+        self.model = nn.Sequential(
+            nn.Linear(pixelDim**2, hidden_dims[0]),
+            nn.LeakyReLU(),
+            nn.Dropout(),
+            nn.Linear(hidden_dims[0], hidden_dims[1]),
+            nn.LeakyReLU(),
+            nn.Dropout(),
+            nn.Linear(hidden_dims[1], 2)
+        )
+
+        # baseline similarity measure: higher is better
+        cosSim = nn.CosineSimilarity()
+        eps = 1E-8
+        relu = nn.ReLU()
+
+        self.positive_sim = lambda x, y: relu(cosSim(x,y) + 1 + eps/2) + eps/2
+
+
+    # redefine the angle encoding / decoding to for full 2pi degrees of encoding
+    def encodeAngles(self, angles):
+        return torch.stack((torch.cos(angles), torch.sin(angles)), dim=1)
+
+    def decodeAngles(self, encodings):
+        return torch.atan2(encodings[:, 1], encodings[:, 0])
+
+    # data
+    def setup(self, stage=None):
+        """generate the datasets"""
+        basesize = self.hparams.dataSize
+
+        trainingAngles = vonmises(self.hparams.kappa_tr, self.hparams.loc_tr
+                                  ).rvs(8*basesize)
+        valAngles = vonmises(self.hparams.kappa_val, self.hparams.loc_val
+                             ).rvs(2*basesize)
+        testAngles = vonmises(self.hparams.kappa_test, self.hparams.loc_test
+                              ).rvs(2*basesize)
+
+        # generate datasets
+        self.trainingData = FaceDataset(trainingAngles, split='train')
+        self.valData = FaceDataset(valAngles, split='validation')
+        self.testData = FaceDataset(testAngles, split='test')
+
+    def validation_step(self, batch, batchidx):
+        """
+        additionally logging the linear validation so that we can compare between
+        different loss functions
+        """
+        images = batch['image']
+        targets = batch['angle']
+
+        encodedTargets = self.encodeAngles(targets)
+        prediction = self.forward(images)
+
+        linear_loss_fn = lambda x, y: 1. - torch.mean(self.cosSim(x, y))
+        linear_loss = linear_loss_fn(prediction, encodedTargets)
+
+        self.log('Linear Val Loss', linear_loss.item())
+        super(EstimateAngle_Faces_final, self).validation_step(batch, batchidx)
+

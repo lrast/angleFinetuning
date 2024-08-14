@@ -8,6 +8,7 @@ from basicModel import EstimateAngle_Faces
 from trainers import runEarlyStoppingTraining
 
 import torch
+from torch import nn
 from torch.nn import CosineSimilarity
 
 
@@ -324,5 +325,87 @@ def Experiment82_smaller_networks(hidden_dims):
 
                 runEarlyStoppingTraining(model,
                     directory=f'trainedParameters/Exp8/smaller/{loss_name}/{dist_name}/rep{rep}/',
+                    gradient_clip_val=0.5
+                    )
+
+
+def Experiment83_with_dropout():
+    """ Differences do emerge between different loss functions and different stimulus distributions.
+        However, the difference in Mean square error is pretty slight.
+        Here, we are trying to enhance the differences by using smaller networks, effectively making
+        the task more difficult.
+    """
+    uniformConfig = {
+                 'loc_tr': np.pi/2,
+                 'kappa_tr': 1E-8,
+                 'loc_val': np.pi/2,
+                 'kappa_val': 1E-8,
+                 'loc_test': np.pi/2,
+                  'kappa_test': 1E-8
+                 }
+
+    concentratedConfig_1 = {
+             'loc_tr': np.pi/2,
+             'kappa_tr': 3.,
+             'loc_val': np.pi/2,
+             'kappa_val': 3.,
+             'loc_test': np.pi/2,
+             'kappa_test': 3.
+             }
+
+    concentratedConfig_2 = {
+             'loc_tr': np.pi/2,
+             'kappa_tr': 1.,
+             'loc_val': np.pi/2,
+             'kappa_val': 1.,
+             'loc_test': np.pi/2,
+             'kappa_test': 1.
+             }
+
+
+    # Cosine similarity is large (close to one) if the two vectors are
+    # similar to each other
+    cosSim = CosineSimilarity()
+    eps = 1E-8
+    relu = torch.nn.ReLU()
+
+    positive_sim = lambda x, y: relu(cosSim(x,y) + 1 + eps/2) + eps/2
+
+    lossFns = {
+        'linear': lambda x, y: 2. + eps - torch.mean(positive_sim(x, y)),
+        'log': lambda x, y: np.log(2. + eps) - torch.mean(torch.log(positive_sim(x, y))),
+        'sqrt': lambda x, y: np.sqrt(2 + eps) - torch.mean(torch.sqrt(positive_sim(x, y)))
+    }
+
+    distParams = {
+        'uniform': uniformConfig,
+        'high_conc': concentratedConfig_1,
+        'low_conc': concentratedConfig_2
+    }
+
+    hidden_dims = (30, 10)
+    pixelDim = 64
+
+    for rep in range(3):
+        for loss_name in lossFns.keys():
+            for dist_name in distParams.keys():
+                model = EstimateAngle_Faces(**distParams[dist_name],
+                              max_epochs=4000,
+                              loss_fn = loss_name,
+                              hidden_dims = hidden_dims
+                              )
+                model.model = nn.Sequential(
+                    nn.Linear(pixelDim**2, hidden_dims[0]),
+                    nn.LeakyReLU(),
+                    nn.Dropout(),
+                    nn.Linear(hidden_dims[0], hidden_dims[1]),
+                    nn.LeakyReLU(),
+                    nn.Dropout(),
+                    nn.Linear(hidden_dims[1], 2)
+                )
+                model.lossFn = lossFns[loss_name]
+
+                runEarlyStoppingTraining(model,
+                    directory=f'trainedParameters/Exp8/dropout/{loss_name}/{dist_name}/rep{rep}/',
                     gradient_clip_val=0.5
                     )
