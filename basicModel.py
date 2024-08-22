@@ -211,7 +211,7 @@ class EstimateAngle_Faces(EstimateAngle):
 class EstimateAngle_Faces_final(EstimateAngle):
     """EstimateAngle_Faces same as EstimateAngle above, but uses the faces dataset
     """
-    def __init__(self, **kwargs):
+    def __init__(self, loss_pair, **kwargs):
         pixelDim = 64
         hidden_dims = (30, 10)
 
@@ -222,8 +222,9 @@ class EstimateAngle_Faces_final(EstimateAngle):
             'noiseVar': 0.,
             'pixelDim': pixelDim,
             'seed': torch.random.seed(),
-            'max_epochs': 2000,
-            'gradient_clip_val': 0.5
+            'max_epochs': 4000,
+            'gradient_clip_val': 0.5,
+            'loss_fn': loss_pair[0]
         }
         hyperparameterValues.update(kwargs)
         super(EstimateAngle_Faces_final, self).__init__(**hyperparameterValues)
@@ -244,6 +245,7 @@ class EstimateAngle_Faces_final(EstimateAngle):
         relu = nn.ReLU()
 
         self.positive_sim = lambda x, y: relu(cosSim(x,y) + 1 + eps/2) + eps/2
+        self.lossFn = lambda x, y: loss_pair[1](self.positive_sim(x,y))
 
 
     # redefine the angle encoding / decoding to for full 2pi degrees of encoding
@@ -287,3 +289,10 @@ class EstimateAngle_Faces_final(EstimateAngle):
         self.log('Linear Val Loss', linear_loss.item())
         super(EstimateAngle_Faces_final, self).validation_step(batch, batchidx)
 
+
+    def teardown(self, stage):
+        """ clearing the memory after it is used """
+        if stage == "fit":
+            del self.trainingData
+            del self.valData
+            del self.testData
