@@ -65,7 +65,7 @@ class FaceDataset(Dataset):
         images = mask_images(images)
 
         self.angles = torch.as_tensor(angles, dtype=torch.float)
-        self.images = torch.as_tensor(images, dtype=torch.float)
+        self.images = torch.as_tensor(images, dtype=torch.float).contiguous()
 
     def __len__(self):
         return len(self.angles)
