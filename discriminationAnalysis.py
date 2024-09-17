@@ -11,10 +11,145 @@ from datageneration.faces.rotated_olivetti import FaceDataset
 from scipy.signal import savgol_filter
 
 
+# adaptive sampling approaches for rough Fisher information functions
+
+def interval_Fisher(model, i0, i1, input_samples=20, target_sterr_percent=0.02, max_samples=100, **FIkwargs):
+    """
+        The Fisher information of learned models seems to vary quite a lot
+        with even small changes in where we evaluate it.
+
+        Instead of point evaluations, sample Fisher information through
+        an interval and use averages w/ bootstrap confidence estimates
+    """
+
+    delta = (i1 - i0)
+    sample_points = i0 + delta * np.random.rand(input_samples)
+    FIs = Fisher_derivatives_faces(model, sample_points, **FIkwargs)
+
+    standard_error = FIs.std() / FIs.shape[0]**0.5
+    target_sterr = target_sterr_percent * FIs.mean()
+
+    print(input_samples, (i0, i1), standard_error)
+
+    if standard_error < target_sterr:
+        return (i0, i1), FIs.mean(), standard_error
+    else:
+        # how many samples do we need to achieve our target variance
+        fudge = 1. # adjustment for
+        samples_needed = input_samples * (standard_error / target_sterr)**2
+        samples_needed = int(samples_needed) + 10
+        print(samples_needed)
+        if samples_needed > max_samples:
+            # we won't hit our target by increasing the number of samples:
+            # split the interval, and increase the number of samples in the individual evaluations
+            results1 = interval_Fisher(model, i0, i0+delta/2, input_samples=input_samples,
+                                       target_sterr_percent=target_sterr_percent, max_samples=max_samples, **FIkwargs)
+            results2 = interval_Fisher(model, i0+delta/2, i1, input_samples=input_samples,
+                                       target_sterr_percent=target_sterr_percent, max_samples=max_samples, **FIkwargs)
+
+            return ['split', results1, results2]
+        else:
+            # increase the number of samples
+            return interval_Fisher(model, i0, i1, input_samples=samples_needed, target_sterr_percent=target_sterr_percent,
+                                   max_samples=max_samples, **FIkwargs)
+
+
+def Full_Fisher_direct(model, thetas, **passThrough):
+    """
+        Assemble interval Fisher information data
+        indexed to the front of the iterval
+    """
+    thetas_out = []
+    FIs_out = []
+
+    def parse_results(results):
+        """ parse the results tree"""
+        if results[0] == 'split':
+            parse_results(results[1])
+            parse_results(results[2])
+        else:
+            # use the interval midpoint
+            interval, FI, standard_error = results
+            thetas_out.append((interval[1] + interval[0])/2)
+            FIs_out.append(FI)
+
+    for i in range(len(thetas)-1):
+        results = interval_Fisher(model, thetas[i], thetas[i+1], **passThrough)
+        parse_results(results)
+
+    ind_sort = np.argsort(thetas_out)
+    return np.array(thetas_out)[ind_sort], np.array(FIs_out)[ind_sort]
+
+
+def Full_Fisher_max_delta(model, thetas, FindFisherInfo, min_diff=10., min_diff_fold=0.05, min_interval=1E-3):
+    """ Adjust the sampling frequency to capture variable locations
+        by adding points until the changes between points are below a maximum value.
+
+        This is an attempt to strike a happy medium between single evaluations which
+        are very location dependent, and interval averages, which are expensive.
+        In that interest, we allow the either small absolute changes or small fold changes in Fisher info.
+
+        min_diff: minimum Fisher information difference allowed
+        min_diff_fold: minimum fractional Fisher information difference allowed
+        min_interval: smallest interval that we test before concluding that there is 
+                      a discontinuity in the Fisher information
+    """
+
+    def get_coverage(thetas):
+        """ recursively cover intervals until the differences are small enough  """
+
+        thetas_out = []
+        FIs_out = []
+
+        FIs = FindFisherInfo(model, thetas)
+
+        #print(thetas, FIs)
+        # where do we have differences that are too large?
+        diffs = np.abs(np.diff(FIs))
+        fold_difference_ratio = diffs / (min_diff_fold*(FIs[:-1] + FIs[1:])/2)
+        absolute_difference_ratio = diffs / min_diff
+
+        difference_ratio = np.minimum(fold_difference_ratio, absolute_difference_ratio)
+
+        n = thetas.shape[0]
+        for i in range(n-1):
+            thetas_out.append(thetas[i])
+            FIs_out.append(FIs[i])
+
+            if thetas[i+1] - thetas[i] <= min_interval:
+                # conclude that there is a discontinuity here
+                continue
+
+            elif difference_ratio[i] > 1:
+                # there is room for improvement
+                n_new = int(difference_ratio[i]) + 2 # minimum of 3 new points
+                thetas_new = np.linspace(thetas[i], thetas[i+1], n_new)
+
+                thetas_subinterval, FIs_subinterval = get_coverage(thetas_new)
+
+                # don't add the first or last points
+                thetas_out.extend(thetas_subinterval[1:-1])
+                FIs_out.extend(FIs_subinterval[1:-1])
+
+        # add on the last point
+        thetas_out.append(thetas[n-1])
+        FIs_out.append(FIs[n-1])
+
+        return thetas_out, FIs_out
+
+    thetas_out, FIs = get_coverage(thetas)
+    return np.array(thetas_out), np.array(FIs)
+
+
 # taking advantage of neural network derivatives
 def Fisher_derivatives_faces(model, thetas, num_samples=1000, image_delta=0.05):
     """ Direct evaluation of the Fisher information by taking derivatives of the neural
         networks.
+
+        Written specifically for the face dataset.
+
+        In notebook 2.2, I explore how empirically this approach is substantially 
+        more statistically efficient that direct evaluation.
     """
     def point_Fisher(theta):
         """ This could definitely be sped up by vectorization in a variety of dimensions """
@@ -60,6 +195,72 @@ def Fisher_derivatives_faces(model, thetas, num_samples=1000, image_delta=0.05):
     return FIs
 
 
+def Fisher_derivatives_faces_mean(model, thetas, num_samples=1000, image_delta=0.05):
+    """ The mean term in the Fisher information, as evaluated by derivatives of the neural network
+    """
+    def point_Fisher(theta):
+        """ This could definitely be sped up by vectorization in a variety of dimensions """
+        I0 = FaceDataset(torch.zeros(80) + theta, split='test').images.contiguous()
+        I0.requires_grad = True
+
+        outputs = model.forward(I0.to(model.device).repeat((num_samples, 1, 1))).cpu()
+        model_grad0 = torch.autograd.grad(outputs.mean(0)[0], I0, retain_graph=True)[0]
+        model_grad1 = torch.autograd.grad(outputs.mean(0)[1], I0)[0]
+
+        plus_I0 = FaceDataset(torch.zeros(80) + theta + image_delta/2, split='test').images.contiguous()
+        minus_I0 = FaceDataset(torch.zeros(80) + theta - image_delta/2, split='test').images.contiguous()
+        image_deriv = (plus_I0 - minus_I0) / image_delta 
+
+        full_deriv0 = (model_grad0 * image_deriv).sum().item()
+        full_deriv1 = (model_grad1 * image_deriv).sum().item()
+        douts = torch.tensor([full_deriv0, full_deriv1])
+
+        cov = outputs.T.cov().detach()
+        torch.mps.empty_cache()
+        return (douts @ torch.linalg.inv(cov) @ douts).item()
+
+    FIs = np.zeros(len(thetas))
+    for i, theta in enumerate(thetas):
+        FIs[i] = point_Fisher(theta)
+
+    return FIs
+
+
+def Fisher_derivatives_faces_covariance(model, thetas, num_samples=1000, image_delta=0.05):
+    """ The covariance term in the Fisher information, as evaluated by derivatives of the neural network
+    """
+    def point_Fisher(theta):
+        """ This could definitely be sped up by vectorization in a variety of dimensions """
+        I0 = FaceDataset(torch.zeros(80) + theta, split='test').images.contiguous()
+        I0.requires_grad = True
+
+        outputs = model.forward(I0.to(model.device).repeat((num_samples, 1, 1))).cpu()
+        cov = outputs.T.cov()
+        model_grad00 = torch.autograd.grad(cov[0,0], I0, retain_graph=True)[0]
+        model_grad01 = torch.autograd.grad(cov[0,1], I0, retain_graph=True)[0]
+        model_grad10 = torch.autograd.grad(cov[1,0], I0, retain_graph=True)[0]
+        model_grad11 = torch.autograd.grad(cov[1,1], I0)[0]
+
+        plus_I0 = FaceDataset(torch.zeros(80) + theta + image_delta/2, split='test').images.contiguous()
+        minus_I0 = FaceDataset(torch.zeros(80) + theta - image_delta/2, split='test').images.contiguous()
+        image_deriv = (plus_I0 - minus_I0) / image_delta 
+
+        full_deriv00 = (model_grad00 * image_deriv).sum().item()
+        full_deriv01 = (model_grad10 * image_deriv).sum().item()
+        full_deriv10 = (model_grad10 * image_deriv).sum().item()
+        full_deriv11 = (model_grad11 * image_deriv).sum().item()
+
+        dCov = torch.tensor([[full_deriv00, full_deriv01], [full_deriv10, full_deriv11]])
+        cov = cov.detach()
+        invcov = torch.linalg.inv(cov)
+        torch.mps.empty_cache()
+        return 0.5 * torch.trace(invcov @ dCov @ invcov @ dCov)
+
+    FIs = np.zeros(len(thetas))
+    for i, theta in enumerate(thetas):
+        FIs[i] = point_Fisher(theta)
+
+    return FIs
 
 
 # Smoothed derivatives
