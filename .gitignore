@@ -3,3 +3,5 @@ __pycache__
 trainedParameters
 wandb
 .DS_Store
+lightning_logs
+experiment_result/

@@ -26,27 +26,33 @@ def rotate_images(images, angles):
     return images
 
 
-def train_test_split():
+def train_test_split(numbers=(256, 64, 80)):
     """ Consistant train-test split 
         In this case, I'm using all face identities in each split
     """
+    ntrain, nval, ntest = numbers
+
     np.random.seed(787)
     inds = np.random.permutation(400)
-    test_inds = inds[0:80]
-    train_inds = inds[80: 80+256]
-    val_inds = inds[80+256:]
+    test_inds = inds[0:ntest]
+    train_inds = inds[ntest: ntest+ntrain]
+    val_inds = inds[ntest+ntrain:]
 
     return train_inds, val_inds, test_inds
 
 
 class FaceDataset(Dataset):
-    """A dataset of gratings"""
-    def __init__(self, angles, split='train', **gratingKwargs):
+    """A dataset of rotated faces"""
+    def __init__(self, angles, split='train', **kwargs):
         super(FaceDataset, self).__init__()
         data = datasets.fetch_olivetti_faces()
         images = data['images']
 
-        tri, vali, testi = train_test_split()
+        if numbers in kwargs:
+            tri, vali, testi = train_test_split(numbers)
+        else:
+            tri, vali, testi = train_test_split()
+
         if split == 'train':
             image_inds = tri
         if split == 'val' or split == 'validation':
