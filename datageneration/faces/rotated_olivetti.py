@@ -7,10 +7,9 @@ from skimage.transform import rotate
 from torch.utils.data import Dataset
 
 
-
 def mask_images(images):
     """ Add a circular mask to prevent  """
-    X_mask, Y_mask = np.meshgrid( np.arange(64) -31.5, np.arange(64) -31.5)
+    X_mask, Y_mask = np.meshgrid(np.arange(64) - 31.5, np.arange(64) - 31.5)
 
     for image in images:
         image[X_mask**2 + Y_mask**2 > 31.5**2] = 0.5
@@ -48,8 +47,8 @@ class FaceDataset(Dataset):
         data = datasets.fetch_olivetti_faces()
         images = data['images']
 
-        if numbers in kwargs:
-            tri, vali, testi = train_test_split(numbers)
+        if 'numbers' in kwargs:
+            tri, vali, testi = train_test_split(kwargs['numbers'])
         else:
             tri, vali, testi = train_test_split()
 
@@ -61,7 +60,7 @@ class FaceDataset(Dataset):
             image_inds = testi
 
         # repeat images until we have enough for all of the angles
-        num_repeats = int(np.ceil( len(angles) / len(image_inds) ))
+        num_repeats = int(np.ceil(len(angles) / len(image_inds)))
         all_inds = np.tile(image_inds, num_repeats)
         image_inds = all_inds[0:len(angles)]
 
@@ -84,7 +83,3 @@ class FaceDataset(Dataset):
         batch_angles = self.angles[idx]
 
         return {'image': batch_images, 'angle': batch_angles}
-
-
-
-

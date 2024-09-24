@@ -13,7 +13,8 @@ from scipy.signal import savgol_filter
 
 # adaptive sampling approaches for rough Fisher information functions
 
-def interval_Fisher(model, i0, i1, input_samples=20, target_sterr_percent=0.02, max_samples=100, **FIkwargs):
+def interval_Fisher(model, i0, i1, input_samples=20, target_sterr_percent=0.02,
+                    max_samples=100, **FIkwargs):
     """
         The Fisher information of learned models seems to vary quite a lot
         with even small changes in where we evaluate it.
@@ -35,7 +36,6 @@ def interval_Fisher(model, i0, i1, input_samples=20, target_sterr_percent=0.02, 
         return (i0, i1), FIs.mean(), standard_error
     else:
         # how many samples do we need to achieve our target variance
-        fudge = 1. # adjustment for
         samples_needed = input_samples * (standard_error / target_sterr)**2
         samples_needed = int(samples_needed) + 10
         print(samples_needed)
@@ -43,14 +43,17 @@ def interval_Fisher(model, i0, i1, input_samples=20, target_sterr_percent=0.02, 
             # we won't hit our target by increasing the number of samples:
             # split the interval, and increase the number of samples in the individual evaluations
             results1 = interval_Fisher(model, i0, i0+delta/2, input_samples=input_samples,
-                                       target_sterr_percent=target_sterr_percent, max_samples=max_samples, **FIkwargs)
+                                       target_sterr_percent=target_sterr_percent,
+                                       max_samples=max_samples, **FIkwargs)
             results2 = interval_Fisher(model, i0+delta/2, i1, input_samples=input_samples,
-                                       target_sterr_percent=target_sterr_percent, max_samples=max_samples, **FIkwargs)
+                                       target_sterr_percent=target_sterr_percent,
+                                       max_samples=max_samples, **FIkwargs)
 
             return ['split', results1, results2]
         else:
             # increase the number of samples
-            return interval_Fisher(model, i0, i1, input_samples=samples_needed, target_sterr_percent=target_sterr_percent,
+            return interval_Fisher(model, i0, i1, input_samples=samples_needed,
+                                   target_sterr_percent=target_sterr_percent,
                                    max_samples=max_samples, **FIkwargs)
 
 
@@ -81,7 +84,8 @@ def Full_Fisher_direct(model, thetas, **passThrough):
     return np.array(thetas_out)[ind_sort], np.array(FIs_out)[ind_sort]
 
 
-def Full_Fisher_max_delta(model, thetas, FindFisherInfo, min_diff=10., min_diff_fold=0.05, min_interval=1E-3):
+def Full_Fisher_max_delta(model, thetas, FindFisherInfo, min_diff=10.,
+                          min_diff_fold=0.05, min_interval=1E-3):
     """ Adjust the sampling frequency to capture variable locations
         by adding points until the changes between points are below a maximum value.
 
@@ -178,7 +182,7 @@ def Fisher_derivatives_faces(model, thetas, num_samples=1000, image_delta=0.05):
         douts = torch.tensor([mean_deriv0, mean_deriv1])
 
         cov_deriv00 = (cov_grad00 * image_deriv).sum().item()
-        cov_deriv01 = (cov_grad10 * image_deriv).sum().item()
+        cov_deriv01 = (cov_grad01 * image_deriv).sum().item()
         cov_deriv10 = (cov_grad10 * image_deriv).sum().item()
         cov_deriv11 = (cov_grad11 * image_deriv).sum().item()
         dCov = torch.tensor([[cov_deriv00, cov_deriv01], [cov_deriv10, cov_deriv11]])
@@ -246,7 +250,7 @@ def Fisher_derivatives_faces_covariance(model, thetas, num_samples=1000, image_d
         image_deriv = (plus_I0 - minus_I0) / image_delta 
 
         full_deriv00 = (model_grad00 * image_deriv).sum().item()
-        full_deriv01 = (model_grad10 * image_deriv).sum().item()
+        full_deriv01 = (model_grad01 * image_deriv).sum().item()
         full_deriv10 = (model_grad10 * image_deriv).sum().item()
         full_deriv11 = (model_grad11 * image_deriv).sum().item()
 

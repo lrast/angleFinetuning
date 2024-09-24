@@ -251,9 +251,8 @@ class EstimateAngle_Faces_final(EstimateAngle):
         eps = 1E-8
         relu = nn.ReLU()
 
-        self.positive_sim = lambda x, y: relu(cosSim(x,y) + 1 + eps/2) + eps/2
-        self.lossFn = lambda x, y: loss_pair[1](self.positive_sim(x,y))
-
+        self.positive_sim = lambda x, y: relu(cosSim(x, y) + 1 + eps/2) + eps/2
+        self.lossFn = lambda x, y: loss_pair[1](self.positive_sim(x, y))
 
     # redefine the angle encoding / decoding to for full 2pi degrees of encoding
     def encodeAngles(self, angles):
@@ -296,7 +295,6 @@ class EstimateAngle_Faces_final(EstimateAngle):
         self.log('Linear Val Loss', linear_loss.item())
         super(EstimateAngle_Faces_final, self).validation_step(batch, batchidx)
 
-
     def teardown(self, stage):
         """ clearing the memory after it is used """
         if stage == "fit":
@@ -311,7 +309,7 @@ class EstimateAngle_Faces_experimental(EstimateAngle):
     def __init__(self, loss_pair, **kwargs):
         pixelDim = 64
         if 'hidden_dims' in kwargs:
-            hidden_dims = kwargs[hidden_dims]
+            hidden_dims = kwargs['hidden_dims']
         hidden_dims = (60, 20)
 
         hyperparameterValues = {
@@ -343,9 +341,8 @@ class EstimateAngle_Faces_experimental(EstimateAngle):
         eps = 1E-8
         relu = nn.ReLU()
 
-        self.positive_sim = lambda x, y: relu(cosSim(x,y) + 1 + eps/2) + eps/2
-        self.lossFn = lambda x, y: loss_pair[1](self.positive_sim(x,y))
-
+        self.positive_sim = lambda x, y: relu(cosSim(x, y) + 1 + eps/2) + eps/2
+        self.lossFn = lambda x, y: loss_pair[1](self.positive_sim(x, y))
 
     # redefine the angle encoding / decoding to for full 2pi degrees of encoding
     def encodeAngles(self, angles):
@@ -388,7 +385,6 @@ class EstimateAngle_Faces_experimental(EstimateAngle):
         self.log('Linear Val Loss', linear_loss.item())
         super(EstimateAngle_Faces_experimental, self).validation_step(batch, batchidx)
 
-
     def teardown(self, stage):
         """ clearing the memory after it is used """
         if stage == "fit":
@@ -399,7 +395,8 @@ class EstimateAngle_Faces_experimental(EstimateAngle):
 
 class FaceAngle_Flat(EstimateAngle):
     """
-        Face angle estimation with a limited ranges: what happends when the output is linear instead of circular?
+        Face angle estimation with a limited ranges: what happends when the
+        output is linear instead of circular?
     """
     def __init__(self, loss_pair, **kwargs):
         pixelDim = 64
@@ -442,8 +439,8 @@ class FaceAngle_Flat(EstimateAngle):
             unit_vector = torch.ones(2,1, device=embeddings.device) / 2**0.5
             return (embeddings @ unit_vector) @ unit_vector.T
 
-        self.positive_diff = lambda x, y: torch.abs(project(x)[:,0] - project(y)[:,0])
-        self.lossFn = lambda x, y: loss_pair[1](self.positive_diff(x,y))
+        self.positive_diff = lambda x, y: torch.abs(project(x)[:, 0] - project(y)[:, 0])
+        self.lossFn = lambda x, y: loss_pair[1](self.positive_diff(x, y))
 
     # now we are decoding the angle linearly along a diagonal line in embedding space
     def encodeAngles(self, angles):

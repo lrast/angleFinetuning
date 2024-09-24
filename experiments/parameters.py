@@ -9,7 +9,7 @@ uniformConfig = {
              'loc_val': np.pi/2,
              'kappa_val': 1E-8,
              'loc_test': np.pi/2,
-              'kappa_test': 1E-8
+             'kappa_test': 1E-8
              }
 
 concentratedConfig_1 = {
