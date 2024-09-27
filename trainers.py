@@ -117,7 +117,8 @@ def trainEarlyStoppingAndLoad_customTest(model, directory, project='EstimateAngl
     return ckpt_path
 
 
-def trainModel(model, directory, project='EstimateAngle', patience=200, **trainer_kwargs):
+def trainModel(model, directory, project='EstimateAngle', patience=200,
+               save_best_train=False, **trainer_kwargs):
     """Simple training behavior with checkpointing"""
     wandb.init(reinit=True)
 
@@ -132,16 +133,30 @@ def trainModel(model, directory, project='EstimateAngle', patience=200, **traine
                                            patience=patience
                                            )
 
-    checkpoint_callback = ModelCheckpoint(dirpath=directory,
-                                          every_n_epochs=1, 
-                                          save_top_k=1,
-                                          monitor='Val Loss',
-                                          save_weights_only=True,
-                                          save_last=False
-                                          )
+    checkpoint_callback_val = ModelCheckpoint(dirpath=directory,
+                                              filename='validation-{epoch}-{step}',
+                                              every_n_epochs=1, 
+                                              save_top_k=1,
+                                              monitor='Val Loss',
+                                              save_weights_only=True,
+                                              save_last=False
+                                              )
+
+    callbacks = [checkpoint_callback_val, earlystopping_callback]
+
+    if save_best_train:
+        checkpoint_callback_train = ModelCheckpoint(dirpath=directory,
+                                                    filename='train-{epoch}-{step}',
+                                                    every_n_epochs=1, 
+                                                    save_top_k=1,
+                                                    monitor='Train Loss',
+                                                    save_weights_only=True,
+                                                    save_last=False
+                                                    )
+        callbacks = [checkpoint_callback_val, checkpoint_callback_train, earlystopping_callback]
 
     trainer = Trainer(logger=wandb_logger,
-                      callbacks=[checkpoint_callback, earlystopping_callback],
+                      callbacks=callbacks,
                       **trainer_kwargs
                       )
     trainer.fit(model)
