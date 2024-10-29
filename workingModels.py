@@ -29,13 +29,13 @@ class FaceAngle(pl.LightningModule):
             'max_epochs': 1500,
             'dataSize': 1024,
             'gradient_clip_val': 0.5,
-            'loss_fn': loss_pair[0],
+            'loss_pair': loss_pair,
             # stimulus generation hyperparameters
             'train_val_test_split': (300, 50, 50),
             'pixelDim': 64,
             'seed': torch.random.seed(),
             # angle distribution hyperparameters
-            'distribution': distribution_pair[0],
+            'distribution_pair': distribution_pair,
             'encoding': encoding
         }
         hyperparameterValues.update(kwargs)

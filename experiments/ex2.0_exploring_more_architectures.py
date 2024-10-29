@@ -4,9 +4,11 @@ from parameters import uniformConfig, concentratedConfig_1, \
                        concentratedConfig_2, lossFns
 
 import torch
+import numpy as np
 
 from workingModels import FaceAngle
 from scipy.stats import vonmises, norm, uniform
+from scipy.stats import multinomial, dirichlet, rv_continuous
 
 
 def Experiment21_CELU_0():
@@ -106,3 +108,48 @@ def Exp23_sweep_losses():
                                f'trainedParameters/Exp2.2/{loss_pair[0]}_loss/{encoding}_enc/{distribution_pair[0]}/rep{rep}',
                                save_best_train=True
                                )
+
+
+def Exp24_sweep_probs(N_samples):
+    """
+        The question here is whether adaptation to stimulus probability
+        distributions depends on the whole distribution or simply on the
+
+    """
+    for N_bins in [4, 6]:
+        probs = dirichlet(np.ones(N_bins)).rvs(N_samples)
+
+        for i, p in enumerate(probs):
+            torch.mps.empty_cache()
+            distribution_pair = (f'random_{N_bins}', UniformMixture(p).rvs)
+
+            model = FaceAngle(('linear', torch.nn.Identity()), distribution_pair, 'linear',
+                              probs=p.tolist())
+            trainModel(model,
+                       f'trainedParameters/Exp2.4/{N_bins}bins/rep{i}',
+                       save_best_train=True
+                       )
+
+
+class UniformMixture(rv_continuous):
+    """UniformMixture: stepwise distribution over the domain -pi/2 to pi/2 """
+    def __init__(self, probs):
+        super(UniformMixture, self).__init__()
+        self.probs = probs
+
+        n_bins = len(probs)
+        starts = np.linspace(-np.pi/2, np.pi/2, n_bins+1)[:-1]
+        width = np.pi / n_bins
+
+        self.dists = {i: uniform(starts[i], width) for i in range(n_bins)}
+
+    def rvs(self, n_samples):
+        samples = []
+        num_per_bin = multinomial(n_samples, self.probs).rvs()[0]
+
+        for i, n in enumerate(num_per_bin):
+            samples.append(self.dists[i].rvs(n))
+
+        samples = np.concatenate(samples)
+        np.random.shuffle(samples)
+        return samples
