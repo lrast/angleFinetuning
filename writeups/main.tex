@@ -1,0 +1,159 @@
+\documentclass[10pt, twocolumn]{article}      % use "amsart" instead of "article" for AMSLaTeX format
+\usepackage{geometry}                       % See geometry.pdf to learn the layout options. There are lots.
+\geometry{letterpaper}                          % ... or a4paper or a5paper or ... 
+%\geometry{landscape}                       % Activate for rotated page geometry
+%\usepackage[parfill]{parskip}          % Activate to begin paragraphs with an empty line rather than an indent
+\usepackage{graphicx}               % Use pdf, png, jpg, or epsÂ§ with pdflatex; use eps in DVI mode
+                                % TeX will automatically convert eps --> pdf in pdflatex   
+\usepackage{caption}
+\usepackage{subcaption}
+\captionsetup{justification=raggedright,singlelinecheck=false}
+
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amsfonts}
+\usepackage{verbatim}
+\usepackage{bm}
+\usepackage{url}
+
+
+\usepackage{tikz}
+\usetikzlibrary{fit,positioning}
+\usepackage[switch]{lineno}
+
+
+\newcommand{\cov}{\mathrm{cov}}
+
+%\usepackage{minted}
+
+
+\begin{document}
+\title{Using Adaptation Under Fine-tuning to Probe Neural Network Representations}
+\author{Luke Rast}
+\maketitle
+\linenumbers
+
+
+\section{Introduction}
+
+
+Many works in computational neuroscience seek to gain insight into neural representations by asking what tasks observed representations are well suited for \cite{yamins_using_2016}[REFs].
+In particular, \textit{efficient coding} models \cite{olshausen_emergence_1996,yamins_performance-optimized_2014}[REFs] use optimization problems to model tasks.
+For example, the classic work \cite{olshausen_emergence_1996} derives a neural code that is optimal for encoding object identity while constrained to have sparse activity, and can be shown to share many features with the activity observed in the visual cortex.
+In this paper, we apply the same approach to artificial neural networks, in order to gain insight into the representations learned by these networks.
+
+
+We have previously shown \cite{rast_adaptation_2020} that a broad class of these efficient coding models can be fit by examining the adaptation behavior of the neural code. 
+In other words, by studying how the neural code adapts to different stimulus environments (i.e. stimulus distributions), we can find the optimization problem that best explains observed activity.
+This is reasonable for biological populations of neurons, which are known to adapt prolifically [REFs].
+In order to apply the same analysis to representations learned by artificial neural networks, we consider fine-tuning of the networks to be a form of adaptation to a novel stimulus context, and apply the same techniques to study empirically the representations that these networks have learned.
+
+Still needs work.
+
+
+\subsection{Previous work}
+
+
+\section{Results}
+
+First, we use a simple experimental system to establish the key properties shared by task-optimized representations.
+We previously derived these same properties theoretically for a class of optimization problems \cite{rast_adaptation_2020}.
+We demonstrate them here empirically. 
+
+
+
+\subsection{Toy model: validation}
+
+
+
+
+\begin{enumerate}
+  \item The Fisher information adapts with the input stimulus distribution, with large Fisher information in more probable locations
+  \item The loss function that we use in training impacts how the Fisher information concentrates around different points.
+  \item Constraints, in the form of prior training impact the stationary point of network adaptation.
+  \item The local Fisher information is fairly constant, and independent of the probability density in other locations.
+\end{enumerate}
+
+
+
+
+\subsection{Toy model: learned representations}
+
+When studying the output 
+
+
+
+
+
+
+\subsection{Toy model: learning dynamics}
+
+
+\subsection{Pretrained model: learned representations}
+
+
+
+\section{Discussion}
+
+
+The use of \textit{adaptation} behavior to study learned representations is fundamental to this approach.
+Rather than studying how networks have learned to represent their training data, we aim at broader features of their representation that are `baked-in', even when the stimulus distribution changes.
+In a computational sense, we want to study elements of the function of each layer that are invariant to the stimulus distribution.
+By studying adaptation, we thus get multiple samples of that function, in different contexts, and therefore, a fuller view of the function that we have hope of fitting.
+
+It is also important to highlight role that \textit{active learning} plays in our approach, especially given recent computational hardness results \cite{goldwasser_planting_2022} related to explainability of machine learning models.
+We don't analyze here the impact of using active learning approaches on these fundamental results.
+However, it is important to note that classical results in computational learning theory \cite{kearns1994introduction} show that even simple models of computation (e.g. finite automata) cannot be fit in polynomial samples without using active learning.
+
+
+
+This work used simple, established methods for measuring the Fisher information and for performing iteration.
+Both of these remain important directions for improvement.
+Linear Fisher information measurements have the advantage of simplicity, and have been used extensively in neuroscience [refs].
+However, the assumption of a Gaussian noise model means that these measurements can become noisy and sensitive to outliers when this assumption fails, in addition to potentially failing to capture features of the Fisher information.
+We demonstrate an alternative method for measuring Fisher information a contemporaneously submitted paper [ref, other paper arXive].
+
+Our iteration method to determine the fixed point distribution was also fairly simplistic.
+This can also see improvements.
+The three key challenges faced in constructing such a method are 1. handling noise in the Fisher information measurements, 2. handling continuous space iterations, 3. ensuring convergence. 
+Active learning, stochastic approximation, Dirichlet processes, convergence in distribution of random variable.
+
+
+
+\section{Methods}
+
+\subsection{Simple model}
+\textbf{Task:} We trained the model to perform regression to determine the orientation of faces.
+We take faces from the Olivetti faces dataset \cite{samaria_parameterisation_1994,Olivetti}, accessed in 64x64 pixel format from \texttt{sklearn} and mask the boarders around a circle with radius of 31 pixels to remove edge effects.
+Orientations range from $-\pi/2$ to $\pi/2$.
+
+\noindent \textbf{Model:} The model is a three layer full-connected neural network with CELU non-linearities \cite{barron_continuously_2017} (chosen for their differentiability). The final angle is read-out from the two-dimensional output layer by projecting onto the diagonal. 
+
+\noindent \textbf{Adaptation:} We study how the network adapts to \textit{label shift}: changes in the distribution of orientations.
+
+
+\subsection{Output discrimination measurements}
+
+\subsection{Fisher information measurements}
+The Fisher information in the network activity about the stimulus identity is determined as in [cite Ganguli papers]. We approximate the neural activity distribution as a normal distribution, so the Fisher information becomes
+\begin{equation}
+  I(s) = \frac{d \mu}{ds}^T \Sigma(s)^{-1} \frac{d\mu}{ds} + \frac{1}{2} \textrm{tr}( \sigma^{-1} \frac{d \Sigma}{ds}\sigma^{-1} \frac{d \Sigma}{ds})
+\end{equation}
+We focus on only the first term of this equation, which has been termed the `linear Fisher information' \cite{kanitscheider_measuring_2015}, and reflects the Fisher information that is accessible to a linear readout from the neural population.
+We measure this Fisher information using a collection of images as follows:
+\begin{enumerate}
+  \item Construct a dataset of all images rotated by $s \pm ds$: $\{p(s \pm ds)\}$
+  \item Evaluate the neural network model outputs, $m$, on these inputs. 
+  \item Compute the covariance matrix of the outputs $\Sigma_m$.
+  \item Compute derivatives of the model with respect to inputs using model derivatives and a finite difference of images with different $s$: $\frac{dm}{ds} = \frac{dm}{d p_n} \frac{p(s + ds) - p(s - ds)}{2 ds} $, average over inputs.
+  \item $I_lin(s) = \frac{d \mu}{ds}^T \Sigma(s)^{-1} \frac{d\mu}{ds}$
+\end{enumerate}
+(Needs improvement, depending the final method that we use for measuring this)
+
+\subsection{Finding the fixed-point distribution}
+
+
+\bibliography{main.bib}
+\bibliographystyle{ieeetr}
+
+\end{document}
