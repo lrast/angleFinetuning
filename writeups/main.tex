@@ -58,7 +58,9 @@ Still needs work.
 
 First, we use a simple experimental system to establish the key properties shared by task-optimized representations.
 We previously derived these same properties theoretically for a class of optimization problems \cite{rast_adaptation_2020}.
-We demonstrate them here empirically. 
+Here, we demonstrate them empirically. 
+
+
 
 
 
@@ -69,7 +71,7 @@ We demonstrate them here empirically.
 
 \begin{enumerate}
   \item The Fisher information adapts with the input stimulus distribution, with large Fisher information in more probable locations
-  \item The loss function that we use in training impacts how the Fisher information concentrates around different points.
+  \item The loss function that we use in training impacts how the Fisher information concentrates around different points. This is similar to classical behavior observed during empirical risk minimization [REF]. However, note that we are measuring how the \textit{sensitivity} of the outputs, changes with the loss function rather than the distribution of outputs themselves. 
   \item Constraints, in the form of prior training impact the stationary point of network adaptation.
   \item The local Fisher information is fairly constant, and independent of the probability density in other locations.
 \end{enumerate}
@@ -79,7 +81,11 @@ We demonstrate them here empirically.
 
 \subsection{Toy model: learned representations}
 
-When studying the output 
+When studying the sensitivity of the model outputs, we have a simple read-out of sensitivity because we know the direction that models outputs will be read out in.
+This is no longer the case for internal layers of the neural network, and we have to use a measurement of sensitivity to changes in the inputs.
+Note that in the final layer, outputs are trained to resemble inputs.
+
+Fisher information, discrimination performance, multivariate Gaussian, SVM with guassian kernel as an approximation.
 
 
 
@@ -90,6 +96,15 @@ When studying the output
 
 
 \subsection{Pretrained model: learned representations}
+
+
+
+\subsection{Things to try:}
+Recording some brainstorm ideas that could make interesting figure 2 or 3 plots.
+\begin{enumerate}
+  \item Single neuron adaptation: can we apply the same results to a single neuron to find its 'adaptation adjusted' tuning curves? This would remove the need to impose an external idea of what the stimulus is, and allow us to
+\end{enumerate}
+
 
 
 
@@ -109,9 +124,12 @@ However, it is important to note that classical results in computational learnin
 
 This work used simple, established methods for measuring the Fisher information and for performing iteration.
 Both of these remain important directions for improvement.
+
 Linear Fisher information measurements have the advantage of simplicity, and have been used extensively in neuroscience [refs].
 However, the assumption of a Gaussian noise model means that these measurements can become noisy and sensitive to outliers when this assumption fails, in addition to potentially failing to capture features of the Fisher information.
 We demonstrate an alternative method for measuring Fisher information a contemporaneously submitted paper [ref, other paper arXive].
+
+SVM for discrimination is non-linear, but only provides a lower bound on the sensitivity. Have to assume that this lower bound is relatively tight.
 
 Our iteration method to determine the fixed point distribution was also fairly simplistic.
 This can also see improvements.
