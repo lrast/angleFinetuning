@@ -5,3 +5,4 @@ wandb
 .DS_Store
 lightning_logs
 experiment_result/
+buildFiles_latex
