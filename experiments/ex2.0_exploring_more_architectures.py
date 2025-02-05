@@ -4,6 +4,7 @@ from parameters import uniformConfig, concentratedConfig_1, \
                        concentratedConfig_2, lossFns
 
 import torch
+import glob
 import numpy as np
 
 from workingModels import FaceAngle
@@ -153,3 +154,50 @@ class UniformMixture(rv_continuous):
         samples = np.concatenate(samples)
         np.random.shuffle(samples)
         return samples
+
+
+def Exp25_finetuning_test():
+    """ 
+        Checking out the behavior of these networks under fine-tuning
+    """
+    loss_pair = ('linear', torch.nn.Identity())
+    dists = {
+            'linear': [('uniform', uniform(-torch.pi/2, torch.pi).rvs),
+                       ('concentrated', norm(torch.pi/4, 0.2).rvs)
+                       ],
+            'circular': [('uniform', uniform(-torch.pi, 2*torch.pi).rvs),
+                         ('concentrated', vonmises(torch.pi/2, 2.).rvs)
+                         ]
+            }
+
+    for rep in range(2):
+        for encoding in ['linear', 'circular']:
+            for i in range(2):
+                distribution_pair = dists[encoding][i]
+
+                directory = f'trainedParameters/Exp2.5/{encoding}_enc/{distribution_pair[0]}/rep{rep}/initial/'
+                model = FaceAngle(loss_pair, distribution_pair, encoding)
+                trainModel(model,
+                           directory,
+                           save_best_train=True
+                           )
+
+                ckpt = glob.glob(directory + 'train*')[0]
+                distribution_pair_ft = dists[encoding][not i]
+
+                model_ft = FaceAngle.load_from_checkpoint(ckpt,
+                                                          distribution_pair=distribution_pair_ft,
+                                                          dataSize=256)
+
+                trainModel(model_ft,
+                           f'trainedParameters/Exp2.5/{encoding}_enc/{distribution_pair_ft[0]}/rep{rep}/finetune_lowdata',
+                           save_best_train=True
+                           )
+
+                model_ft_2 = FaceAngle.load_from_checkpoint(ckpt, distribution_pair=distribution_pair_ft)
+                model_ft_2.model[0].requires_grad_(False)
+
+                trainModel(model_ft_2,
+                           f'trainedParameters/Exp2.5/{encoding}_enc/{distribution_pair[0]}/rep{rep}/finetune_frozen',
+                           save_best_train=True
+                           )
