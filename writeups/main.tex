@@ -1,4 +1,4 @@
-\documentclass[10pt, twocolumn]{article}      % use "amsart" instead of "article" for AMSLaTeX format
+\documentclass[10pt]{article}      % use "amsart" instead of "article" for AMSLaTeX format
 \usepackage{geometry}                       % See geometry.pdf to learn the layout options. There are lots.
 \geometry{letterpaper}                          % ... or a4paper or a5paper or ... 
 %\geometry{landscape}                       % Activate for rotated page geometry
@@ -22,13 +22,13 @@
 \usepackage[switch]{lineno}
 
 
-\newcommand{\cov}{\mathrm{cov}}
-
+\newcommand{\st}{\mathrm{s.t.}}
+\newtheorem{theorem}{Theorem}
 %\usepackage{minted}
-
-
+\usepackage{setspace}
+\doublespacing
 \begin{document}
-\title{Using Adaptation Under Fine-tuning to Probe Neural Network Representations}
+\title{Using Adaptation Under Fine-tuning to Probe Learned Neural Network Representations}
 \author{Luke Rast}
 \maketitle
 \linenumbers
@@ -56,17 +56,70 @@ Still needs work.
 
 \section{Results}
 
+*** Needs reworking for the new scope of the paper
+
+
 First, we use a simple experimental system to establish the key properties shared by task-optimized representations.
 We previously derived these same properties theoretically for a class of optimization problems \cite{rast_adaptation_2020}.
 Here, we demonstrate them empirically. 
 
 
+\subsection{Rate-Distortion models of neural codes}
+
+We first investigate the neural code from the perspective of rate-distortion theory \cite{cover1999elements}, which relates the information capacity of a channel to the level of message distortion when that channel is used.
+Consider the problem of encoding input values $x$, distributed as $p(x)$, using a noisy encoding $y \sim p(y|x)$.
+The distortion-rate function $D(R)$ gives the minimum level of distortion that is achievable when the channel has limited capacity
+\begin{align}
+  D(R | p(x) ) &= \min_{p(x|y)} \mathbb{E}_{p(x|y) p(x)}[d(x, y)]  \label{eq:distortion-rate1} \\
+               &\st \quad   I(x, y)\le R  \label{eq:distortion-rate2}
+\end{align}
+where $d(x,y)$ is the distortion function, which measures the level of mismatch between inputs $x$ and outputs $y$, $I(x,y)$ is the mutual information, and $R$ is the limited channel capacity.
+Note that the distortion-rate function depends on the distribution of input values.
+
+Applying this approach to neural codes, we can hypothesize that an observed neural representation solves a distortion-rate problem.
+For example, take a neural network that performs regression on data $D$, mapping $D \to y$.
+We consider a data generating process in which the ground truth labels generate data ${x \to D}$.
+In combination with the learned neural network $D \to y$, this gives a noisy channel $x \to D \to y$.
+The hypothesis, then, is that while this channel is constrained in the mutual information available (for example due to the data generation process), the trained network can be thought of as a minimizer of some distortion measure between ground-truth and output values. 
+This distortion measure is, of course, influenced by the loss function that the network was trained with, but is also impacted by network architecture and the data that the network was trained on.
+
+This idea naturally leads to two questions:
+1) can we fit the distortion function that explains an observed neural code?
+2) can we falsify the hypothesis that an observed neural code is a distortion-rate minimizer?
+We can answer both of these questions by observing a connection between the distortion function and the copula [REF], which is the joint distribution of channel inputs and outputs when these random variables are transformed to have uniform marginal distributions.
+This can be expressed as:
+\begin{equation}
+  p(x, y) = c(F_x(x), F_y(y))p(x)p(y)
+\end{equation}
+where $c(\cdot, \cdot)$ is the copula, and $F_x$ and $F_y$ are the cumulative distribution functions of the inputs and outputs respectively.
+Given this definition, we have
+
+\begin{theorem}
+  For a distortion-rate optimized channel, the copula $c(F_x(x), F_y(y))$ is proportional to $\exp(-\lambda d(x, y))$ for constant $\lambda$
+\end{theorem}
+\begin{proof}
+  The distortion-rate optimization, eqs.~(\ref{eq:distortion-rate1}-\ref{eq:distortion-rate2}) is equivalent to the dual rate-distortion optimization problem
+  \begin{equation}
+    \min_{p(x|y)} I(x, y) \quad \st \quad \mathbb{E}_{p(x|y) p(x)}[d(x, y)] \le D
+  \end{equation}
+  \begin{equation}
+    = \min_{p(x|y)} \int p(x,y) \log \frac{p(x,y)}{p(x)p(y)} dxdy \quad \st \quad \int d(x, y) p(x,y) dx dy \le D
+  \end{equation}
+  Transforming both inputs and outputs variables by their respective CDFs to, e.g., $\hat x = F_x(x)$ gives
+  \begin{equation}
+    = \min_{c(\hat x, \hat y)} \int c(\hat x, \hat y) \log c(\hat x, \hat y) d \hat x d \hat y \quad \st \quad \int c(\hat x, \hat y) d(F_x^{-1}(\hat x), F_y^{-1}(\hat y)) d \hat x d \hat y
+  \end{equation}
+  Changing signs of the optimization objective, this is an constrained entropy maximization problem, which can be solved to give:
+  \begin{equation}
+    c(\hat x, \hat y) = \exp(-\lambda d(F_x^{-1}(\hat x), F_y^{-1}(\hat y)))
+  \end{equation}
+
+\end{proof}
+
 
 
 
 \subsection{Toy model: validation}
-
-
 
 
 \begin{enumerate}
@@ -90,9 +143,11 @@ Fisher information, discrimination performance, multivariate Gaussian, SVM with 
 
 
 
-
-
 \subsection{Toy model: learning dynamics}
+
+
+
+
 
 
 \subsection{Pretrained model: learned representations}
