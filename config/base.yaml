@@ -1,0 +1,23 @@
+data:
+  loc: 0.
+  kappa: 1.
+
+model:
+  base_model: lrast/angle_extraction_pretrained
+
+train:
+  batch_size: 32
+  lr: 1e-4
+  run_name: debug
+  max_epochs: 500
+  use_early_stopping: False
+  patience: 50
+  frozen_base: False
+  grad_clip: 1.0
+
+hydra:
+  run:
+    dir: experiments_angle/${now:%Y-%m-%d\(%H:%M:%S\)}-${train.run_name}
+
+debug:
+  single_image: False

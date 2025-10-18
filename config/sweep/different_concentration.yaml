@@ -1,0 +1,19 @@
+# @package _global_
+
+model:
+  base_model: lrast/angle_extraction_pretrained
+
+train:
+  lr: 1.0e-06
+  run_name: sweep_debug
+  max_epochs: 1
+  frozen_base: False
+
+hydra:
+  mode: MULTIRUN
+  sweep:
+    dir: experiments/multirun/${now:%Y-%m-%d\(%H:%M:%S\)}_kappa_sweep
+    subdir: ${hydra.job.num}_kappa_${data.kappa}
+  sweeper:
+    params:
+      data.kappa: 5., 1., 10.

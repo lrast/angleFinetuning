@@ -1,0 +1,22 @@
+# Core PyTorch and ML dependencies
+torch>=2.0.0
+torchvision>=0.15.0
+pytorch-lightning>=2.0.0
+
+# Hugging Face transformers and model hub
+transformers>=4.30.0
+huggingface-hub>=0.16.0
+
+# Data processing and scientific computing
+numpy>=1.24.0
+scipy>=1.10.0
+
+# Configuration management
+hydra-core>=1.2.0
+omegaconf>=2.3.0
+
+# Logging and experiment tracking
+wandb>=0.15.0
+
+# For better performance
+accelerate>=0.20.0

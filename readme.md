@@ -1,6 +1,13 @@
 # Studying fine tuning and multitask learning in an angle discrimination task
 
-Highlights:
+## Large data, large models:
+
+### Setup:
+Used Resnet-18 backbone with 2-layer probing, and rotated versions of the Celeb-A dataset from torchvision.
+
+
+
+## Highlights of prior work:
 1. Develops multiple ways to measure Fisher information neural networks
     - We observe very 'rough' Fisher information measurements, in the sense that the can change quickly with small changes in inputs
 
