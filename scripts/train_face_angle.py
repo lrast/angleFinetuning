@@ -1,5 +1,6 @@
 # Train script for face angle models
 import hydra
+import wandb
 
 from torch.utils.data import DataLoader
 from omegaconf import DictConfig,  OmegaConf
@@ -49,6 +50,7 @@ def main(cfg: DictConfig):
 
     # Train
     trainer.fit(model, train_dl, val_dl)
+    wandb.finish()
 
 
 if __name__ == "__main__":

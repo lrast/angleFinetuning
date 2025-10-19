@@ -5,8 +5,8 @@ model:
 
 train:
   lr: 1.0e-06
-  run_name: sweep_debug
-  max_epochs: 1
+  run_name: sweep
+  max_epochs: 50
   frozen_base: False
 
 hydra:
@@ -16,4 +16,4 @@ hydra:
     subdir: ${hydra.job.num}_kappa_${data.kappa}
   sweeper:
     params:
-      data.kappa: 5., 1., 10.
+      data.kappa: 1., 10.
