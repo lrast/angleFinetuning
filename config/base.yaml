@@ -4,6 +4,7 @@ data:
 
 model:
   base_model: lrast/angle_extraction_pretrained
+  loss_name: 'cos_sim'
 
 train:
   batch_size: 32

@@ -9,10 +9,34 @@ from transformers import ResNetModel, AutoImageProcessor
 from huggingface_hub import PyTorchModelHubMixin
 
 
+cos_similarity = nn.CosineSimilarity()
+
+
+def angle_between(A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
+    """
+    Fast, stable 2D angle computation for shape (N, 2)
+    """
+    assert (A.shape[1] == 2 and B.shape[1] == 2)
+
+    cross = A[:, 0]*B[:, 1] - A[:, 1]*B[:, 0]
+    dot = (A * B).sum(dim=-1)
+    
+    return torch.atan2(cross, dot)
+
+
+loss_registry = {
+    'cos_sim': lambda pred, target: (1. - cos_similarity(pred, target)).mean(),
+    'angle_diff': lambda pred, target: angle_between(pred, target).abs().mean(),
+    'sq_diff': lambda pred, target: (angle_between(pred, target)**2).mean(),
+    'sqrt_diff': lambda pred, target: (angle_between(pred, target).abs()**0.5).mean(),
+}
+
+
 class EstimateAngle(pl.LightningModule, PyTorchModelHubMixin):
     """Uses architecture that is selected for well-behaved MSE curves.
     """
-    def __init__(self, base_model="microsoft/resnet-18", lr=3E-4):
+    def __init__(self, base_model="microsoft/resnet-18", lr=3E-4,
+                 loss_name='cos_sim'):
         super().__init__()
         # !!!!!!!!!! dev: what to seed?
 
@@ -26,8 +50,7 @@ class EstimateAngle(pl.LightningModule, PyTorchModelHubMixin):
                                      nn.Linear(output_size, 2)
                                      )
 
-        self.cosSim = nn.CosineSimilarity()
-        self.loss = lambda pred, target: torch.mean(1. - self.cosSim(pred, target))
+        self.loss = loss_registry[loss_name]
         self.save_hyperparameters()
 
     def decodeAngles(self, encodings):
