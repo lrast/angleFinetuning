@@ -1,15 +1,23 @@
 # Linear discriminator on activity data
 import torch
+import numpy as np
+import warnings
+
+from data.rotated_faces import ConsistentRotationDataset
 
 from sklearn.svm import SVC
-from data.rotated_faces import ConsistentRotationDataset
+from sklearn.metrics import confusion_matrix
+from scipy.stats import norm
+from sklearn.model_selection import StratifiedKFold
+
+from tqdm import tqdm
 
 
 class ActivityRecord():
     """Recorder to capture internal model activity"""
     def __init__(self, module):
         self.activity = {}
-        module.register_forward_hook(self.record_activity)
+        self.hooks = module.register_forward_hook(self.record_activity)
 
         self.activity = {}
         self.key = 'none'
@@ -19,7 +27,7 @@ class ActivityRecord():
 
     def record_activity(self, module, input, output):
         key = self.key
-        output = output.clone().detach().cpu()
+        output = output.detach().clone()
 
         if key not in self.activity:
             self.activity[key] = output
@@ -30,37 +38,77 @@ class ActivityRecord():
         self.activity = {}
 
 
-def linear_discriminability(model, module, left, delta):
-    """ performance of linear discriminator on internal activity data"""
-    ds1 = ConsistentRotationDataset(left-delta/2, split='valid')
-    ds2 = ConsistentRotationDataset(left+delta/2, split='valid')
+class DiscriminationAnalysis():
+    """DiscriminationAnalysis: holder for the discrimination based Fisher information 
+    analyses
+    """
+    def __init__(self, model, module):
+        self.model = model
+        self.module = module
 
-    dl1 = torch.utils.data.DataLoader(ds1, batch_size=256, shuffle=False)
-    dl2 = torch.utils.data.DataLoader(ds2, batch_size=256, shuffle=False)
+        self.recorder = ActivityRecord(module)
 
-    recorder = ActivityRecord(module)
+    def get_activity(self, midpoint, delta):
+        """ performance of linear discriminator on internal activity data"""
 
-    recorder.set_key(0)
-    for batch in iter(dl1):
-        model.forward(batch[0].to(model.device))
+        ds1 = ConsistentRotationDataset(midpoint-delta/2, split='valid')
+        ds2 = ConsistentRotationDataset(midpoint+delta/2, split='valid')
 
-    recorder.set_key(1)
-    for batch in iter(dl2):
-        model.forward(batch[0].to(model.device))
+        dl1 = torch.utils.data.DataLoader(ds1, batch_size=32,
+                                          shuffle=False, num_workers=4,
+                                          )
+        dl2 = torch.utils.data.DataLoader(ds2, batch_size=32,
+                                          shuffle=False, num_workers=4,
+                                          )
 
-    l1 = len(recorder.activity[0])
-    l2 = len(recorder.activity[1])
-    all_embeddings = torch.concat([recorder.activity[0].view(l1, -1),
-                                   recorder.activity[1].view(l2, -1)])
-    labels = torch.concat([torch.zeros(l1), torch.ones(l2)])
+        self.recorder.set_key(0)
+        for batch in iter(dl1):
+            self.model.forward(batch[0].to(self.model.device))
 
-    svm = SVC(kernel='linear', C=1.)
-    svm.fit(all_embeddings, labels)
+        self.recorder.set_key(1)
+        for batch in iter(dl2):
+            self.model.forward(batch[0].to(self.model.device))
 
-    return (svm.predict(all_embeddings.view(l1 + l2, -1)) != labels.numpy()).sum()
+        l1 = len(self.recorder.activity[0])
+        l2 = len(self.recorder.activity[1])
+        all_embeddings = torch.concat([self.recorder.activity[0].view(l1, -1),
+                                       self.recorder.activity[1].view(l2, -1)]
+                                      ).cpu()
+        labels = torch.concat([torch.zeros(l1), torch.ones(l2)])
+
+        self.recorder.clear_record()
+        return all_embeddings, labels
+
+    def get_discrimination_performance(self, midpoint, delta=0.03):
+        data, labels = self.get_activity(midpoint, delta)
+        # cross validated d prime measurements
+        skf = StratifiedKFold(n_splits=8)
+
+        results = []
+        for test_ind, train_ind in skf.split(data, labels):
+            results.append(dprime(data[train_ind], labels[train_ind],
+                                  data[test_ind], labels[test_ind]
+                                  ))
+
+        return np.mean(results), np.cov(results)
+
+    def Fisher_info(self, angles, delta=0.03):
+        """ Single point Fisher information.
+            Future work: update to use multiple deltas
+        """
+        FIs = []
+        for angle in tqdm(angles):
+            dprime, var = self.get_discrimination_performance(angle, delta)
+            if var / dprime > 0.1:
+                warnings.warn('Large cross validation variance.')
+            FIs.append(dprime/delta)
+        return np.array(FIs)
 
 
-
-
-
-
+def dprime(train_data, train_labels, test_data, test_labels):
+    smv = SVC(kernel='linear', C=1.)
+    smv.fit(train_data, train_labels)
+    C = confusion_matrix(smv.predict(test_data), test_labels)
+    
+    dprime = norm.ppf(C[0, 0] / C.sum(0)[0]) - norm.ppf(C[0, 1] / C.sum(0)[1])
+    return dprime

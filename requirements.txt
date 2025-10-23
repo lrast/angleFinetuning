@@ -20,3 +20,7 @@ wandb>=0.15.0
 
 # For better performance
 accelerate>=0.20.0
+
+# Utility
+gdown
+hf_transfer

@@ -28,7 +28,8 @@ class RotatedFacesDataset(Dataset):
             root='~/Datasets',
             split=split,
             download=True,
-            transform=self.transform
+            transform=self.transform,
+            target_type=[]
         )
 
         self.angle_dist = vonmises(loc=loc, kappa=kappa)
