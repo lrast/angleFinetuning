@@ -41,6 +41,8 @@ class ActivityRecord():
 class DiscriminationAnalysis():
     """DiscriminationAnalysis: holder for the discrimination based Fisher information 
     analyses
+
+    To do: Update this to use robust statistic for FI measurements
     """
     def __init__(self, model, module):
         self.model = model

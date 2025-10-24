@@ -1,0 +1,21 @@
+# @package _global_
+
+model:
+  base_model: lrast/angle_extraction_concentrated
+  loss_name: angle_diff
+
+train:
+  lr: 1.0e-06
+  run_name: sweep_constraint
+  max_epochs: 30
+  frozen_base: True
+
+hydra:
+  mode: MULTIRUN
+  sweep:
+    dir: experiments/multirun/${now:%Y-%m-%d\(%H:%M:%S\)}_constraint_sweep
+    subdir: ${hydra.job.num}_kappa_${data.kappa}
+  sweeper:
+    params:
+      data.kappa: 0.01, 1., 10.
+      data.loc: 1.6
