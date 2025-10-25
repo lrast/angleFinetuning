@@ -14,7 +14,7 @@ from sklearn.covariance import MinCovDet
 from scipy.spatial.distance import mahalanobis
 
 
-def sweep_activity_record(sweep_dir):
+def sweep_activity_record(sweep_dir, name):
     """ Run a given analysis for every model in a sweep
 
         analysis: takes a function, returns a dictionary of results
@@ -27,6 +27,7 @@ def sweep_activity_record(sweep_dir):
         if not experiment_dir.is_dir():
             continue
 
+        print(experiment_dir)
         model = EstimateAngle.load_from_checkpoint(experiment_dir / 'checkpoints/best.ckpt')
         model = model.to('mps')
         config = OmegaConf.load(experiment_dir / '.hydra/config.yaml')
@@ -40,7 +41,7 @@ def sweep_activity_record(sweep_dir):
         for i, midpoint in enumerate(np.linspace(-np.pi, np.pi, 50)):
             delta = 0.03
 
-            location = Path(f'experiment_data/activity/{kappa}/{loss}/{i}/')
+            location = Path(f'experiment_data/{name}/{kappa}/{loss}/{i}/')
             location.mkdir(parents=True)
 
             data, labels = analyzer.get_activity(midpoint, delta)
@@ -72,4 +73,4 @@ def robust_FI(data, labels, delta):
 
 if __name__ == '__main__':
     print(sys.argv[1])
-    sweep_activity_record(sys.argv[1])
+    sweep_activity_record(sys.argv[1], sys.argv[2])

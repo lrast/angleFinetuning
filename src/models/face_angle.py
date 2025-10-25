@@ -4,6 +4,7 @@ import torch
 import pytorch_lightning as pl
 
 from torch import nn
+from torch.nn.functional import normalize
 from transformers import ResNetModel, AutoImageProcessor
 
 from huggingface_hub import PyTorchModelHubMixin
@@ -36,7 +37,7 @@ class EstimateAngle(pl.LightningModule, PyTorchModelHubMixin):
     """Uses architecture that is selected for well-behaved MSE curves.
     """
     def __init__(self, base_model="microsoft/resnet-18", lr=3E-4,
-                 loss_name='cos_sim'):
+                 loss_name='cos_sim', lagrange=0.0):
         super().__init__()
         # !!!!!!!!!! dev: what to seed?
 
@@ -51,7 +52,9 @@ class EstimateAngle(pl.LightningModule, PyTorchModelHubMixin):
                                      )
 
         self.loss = loss_registry[loss_name]
+        self.lagrange = lagrange
         self.save_hyperparameters()
+        print(self.device)
 
     def decodeAngles(self, encodings):
         return torch.atan2(encodings[:, 1], encodings[:, 0])
@@ -65,10 +68,21 @@ class EstimateAngle(pl.LightningModule, PyTorchModelHubMixin):
 
     def training_step(self, batch, batchidx=None):
         images, targets = batch
-
         predictions = self.forward(images)
-
         loss = self.loss(predictions, targets)
+
+        if self.lagrange != 0.0:
+            # add in constraint on distance from 'central' angle
+            constraint_mean = torch.tensor([0., 1.]).repeat(images.shape[0], 1
+                                                            ).to(self.device)
+            additional_loss = self.lagrange * (1 - torch.einsum('nk, nk -> n', 
+                                                                constraint_mean,
+                                                                normalize(predictions))
+                                               ).mean()
+            self.log('train/debug', additional_loss.item())
+
+            loss = loss + additional_loss
+
         self.log('train/loss', loss.item())
 
         return loss

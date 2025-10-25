@@ -3,12 +3,12 @@ import torch
 import numpy as np
 import warnings
 
-from data.rotated_faces import ConsistentRotationDataset
+from ..data.rotated_faces import ConsistentRotationDataset
 
-from sklearn.svm import SVC
-from sklearn.metrics import confusion_matrix
-from scipy.stats import norm
 from sklearn.model_selection import StratifiedKFold
+from sklearn.covariance import MinCovDet
+from scipy.spatial.distance import mahalanobis
+
 
 from tqdm import tqdm
 
@@ -49,12 +49,20 @@ class DiscriminationAnalysis():
         self.module = module
 
         self.recorder = ActivityRecord(module)
+        self.N_samples = 19867
 
     def get_activity(self, midpoint, delta):
         """ performance of linear discriminator on internal activity data"""
-
         ds1 = ConsistentRotationDataset(midpoint-delta/2, split='valid')
         ds2 = ConsistentRotationDataset(midpoint+delta/2, split='valid')
+
+        N_samples = self.N_samples
+        if N_samples < len(ds1):
+            inds1 = torch.randperm(10000)[0:N_samples]
+            inds2 = torch.randperm(10000)[0:N_samples]
+
+            ds1 = torch.utils.data.Subset(ds1, inds1)
+            ds2 = torch.utils.data.Subset(ds2, inds2)
 
         dl1 = torch.utils.data.DataLoader(ds1, batch_size=32,
                                           shuffle=False, num_workers=4,
@@ -81,18 +89,18 @@ class DiscriminationAnalysis():
         self.recorder.clear_record()
         return all_embeddings, labels
 
-    def get_discrimination_performance(self, midpoint, delta=0.03):
-        data, labels = self.get_activity(midpoint, delta)
-        # cross validated d prime measurements
-        skf = StratifiedKFold(n_splits=8)
+    def discrimination_performance(self, center, delta):
+        data, labels = self.get_activity(center, delta)
 
-        results = []
-        for test_ind, train_ind in skf.split(data, labels):
-            results.append(dprime(data[train_ind], labels[train_ind],
-                                  data[test_ind], labels[test_ind]
-                                  ))
+        mcd0 = MinCovDet().fit(data[labels == 0])
+        mu_robust0 = mcd0.location_
+        cov_robust0 = mcd0.covariance_
+        
+        mcd1 = MinCovDet().fit(data[labels == 1])
+        mu_robust1 = mcd1.location_
+        cov_robust1 = mcd1.covariance_
 
-        return np.mean(results), np.cov(results)
+        return mahalanobis(mu_robust0, mu_robust1, np.linalg.inv(0.5*cov_robust1 + 0.5*cov_robust0)) / delta
 
     def Fisher_info(self, angles, delta=0.03):
         """ Single point Fisher information.
@@ -100,17 +108,9 @@ class DiscriminationAnalysis():
         """
         FIs = []
         for angle in tqdm(angles):
-            dprime, var = self.get_discrimination_performance(angle, delta)
-            if var / dprime > 0.1:
-                warnings.warn('Large cross validation variance.')
+            dprime = self.discrimination_performance(angle, delta)
             FIs.append(dprime/delta)
         return np.array(FIs)
 
 
-def dprime(train_data, train_labels, test_data, test_labels):
-    smv = SVC(kernel='linear', C=1.)
-    smv.fit(train_data, train_labels)
-    C = confusion_matrix(smv.predict(test_data), test_labels)
-    
-    dprime = norm.ppf(C[0, 0] / C.sum(0)[0]) - norm.ppf(C[0, 1] / C.sum(0)[1])
-    return dprime
+
