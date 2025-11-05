@@ -20,4 +20,4 @@ hydra:
     subdir: ${hydra.job.num}_kappa_${data.kappa}
   sweeper:
     params:
-      train.loss_name: angle_diff, sq_diff, sqrt_diff
+      model.loss_name: angle_diff, sq_diff, sqrt_diff

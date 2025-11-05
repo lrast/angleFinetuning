@@ -15,7 +15,7 @@ train:
 hydra:
   mode: MULTIRUN
   sweep:
-    dir: experiments/multirun/${now:%Y-%m-%d\(%H:%M:%S\)}_constraint_sweep
+    dir: experiments/multirun/${now:%Y-%m-%d\(%H:%M:%S\)}_constraint_sweep_hard
     subdir: ${hydra.job.num}_kappa_${data.kappa}_loss_${model.loss_name}
   sweeper:
     params:

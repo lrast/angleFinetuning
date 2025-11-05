@@ -44,12 +44,12 @@ class DiscriminationAnalysis():
 
     To do: Update this to use robust statistic for FI measurements
     """
-    def __init__(self, model, module):
+    def __init__(self, model, module, N_samples=1000):
         self.model = model
         self.module = module
 
         self.recorder = ActivityRecord(module)
-        self.N_samples = 19867
+        self.N_samples = N_samples
 
     def get_activity(self, midpoint, delta):
         """ performance of linear discriminator on internal activity data"""
@@ -57,19 +57,16 @@ class DiscriminationAnalysis():
         ds2 = ConsistentRotationDataset(midpoint+delta/2, split='valid')
 
         N_samples = self.N_samples
-        if N_samples < len(ds1):
-            inds1 = torch.randperm(10000)[0:N_samples]
-            inds2 = torch.randperm(10000)[0:N_samples]
+        total_count = len(ds1)
+        if N_samples < total_count:
+            inds1 = torch.randperm(total_count)[0:N_samples]
+            inds2 = torch.randperm(total_count)[0:N_samples]
 
             ds1 = torch.utils.data.Subset(ds1, inds1)
             ds2 = torch.utils.data.Subset(ds2, inds2)
 
-        dl1 = torch.utils.data.DataLoader(ds1, batch_size=32,
-                                          shuffle=False, num_workers=4,
-                                          )
-        dl2 = torch.utils.data.DataLoader(ds2, batch_size=32,
-                                          shuffle=False, num_workers=4,
-                                          )
+        dl1 = torch.utils.data.DataLoader(ds1, batch_size=32)
+        dl2 = torch.utils.data.DataLoader(ds2, batch_size=32)
 
         self.recorder.set_key(0)
         for batch in iter(dl1):
@@ -100,7 +97,8 @@ class DiscriminationAnalysis():
         mu_robust1 = mcd1.location_
         cov_robust1 = mcd1.covariance_
 
-        return mahalanobis(mu_robust0, mu_robust1, np.linalg.inv(0.5*cov_robust1 + 0.5*cov_robust0)) / delta
+        return mahalanobis(mu_robust0, mu_robust1,
+                           np.linalg.inv(0.5*cov_robust1 + 0.5*cov_robust0))
 
     def Fisher_info(self, angles, delta=0.03):
         """ Single point Fisher information.
@@ -109,8 +107,5 @@ class DiscriminationAnalysis():
         FIs = []
         for angle in tqdm(angles):
             dprime = self.discrimination_performance(angle, delta)
-            FIs.append(dprime/delta)
+            FIs.append(dprime / delta)
         return np.array(FIs)
-
-
-

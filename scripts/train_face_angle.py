@@ -1,6 +1,7 @@
 # Train script for face angle models
 import hydra
 import wandb
+import torch
 
 from torch.utils.data import DataLoader
 from omegaconf import DictConfig,  OmegaConf
@@ -14,6 +15,7 @@ from src.train.face_angle import make_trainer
 @hydra.main(config_path="../config", config_name="base", version_base="1.2")
 def main(cfg: DictConfig):
     # Initialize data
+    torch.set_float32_matmul_precision('high')
     if cfg.debug.single_image:
         data_train = SingleFaceDataset(**cfg.data, split='train')
         data_val = SingleFaceDataset(**cfg.data, split='valid')

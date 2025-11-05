@@ -54,7 +54,6 @@ class EstimateAngle(pl.LightningModule, PyTorchModelHubMixin):
         self.loss = loss_registry[loss_name]
         self.lagrange = lagrange
         self.save_hyperparameters()
-        print(self.device)
 
     def decodeAngles(self, encodings):
         return torch.atan2(encodings[:, 1], encodings[:, 0])
